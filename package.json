@@ -1,0 +1,12 @@
+{
+  "name": "pulse-run",
+  "version": "1.0.0",
+  "description": "Pulse Run — neon endless runner with rhythm-reactive elements",
+  "scripts": {
+    "serve": "npx serve -s . -l 3000",
+    "dev": "npx serve -s . -l 3000 --no-clipboard",
+    "deploy": "npx vercel --yes"
+  },
+  "keywords": ["game", "endless-runner", "html5", "canvas"],
+  "license": "MIT"
+}
