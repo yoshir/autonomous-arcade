@@ -1,6 +1,7 @@
 {
   "cleanUrls": true,
   "trailingSlash": true,
+  "analytics": true,
   "headers": [
     {
       "source": "/(.*)",

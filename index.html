@@ -265,7 +265,6 @@ footer a:hover { color: #00f0ff; }
     <a href="/games/hex-match/" class="game-card">
       <div class="game-thumb game-thumb-puzzle">
         <div class="game-thumb-icon">🧠</div>
-        <div class="new-badge">New</div>
         <div class="play-badge">▶ Play</div>
       </div>
       <div class="game-info">
@@ -275,6 +274,23 @@ footer a:hover { color: #00f0ff; }
           <span class="tag">Puzzle</span>
           <span class="tag">Memory</span>
           <span class="tag">Speed</span>
+        </div>
+      </div>
+    </a>
+
+    <a href="/games/reflex-test/" class="game-card">
+      <div class="game-thumb game-thumb-puzzle" style="background: linear-gradient(135deg, #1a0a2e 0%, #050520 50%, #2a0a0a 100%);">
+        <div class="game-thumb-icon">⚡</div>
+        <div class="new-badge">New</div>
+        <div class="play-badge">▶ Play</div>
+      </div>
+      <div class="game-info">
+        <div class="game-title">Reflex Test</div>
+        <div class="game-desc">How fast are you? 5-round reaction time test. Click when the screen turns green.</div>
+        <div class="game-tags">
+          <span class="tag">Reflex</span>
+          <span class="tag">Speed</span>
+          <span class="tag">Competitive</span>
         </div>
       </div>
     </a>
@@ -302,7 +318,7 @@ footer a:hover { color: #00f0ff; }
 
 <div class="stats-bar">
   <div class="stat">
-    <div class="stat-value">2</div>
+    <div class="stat-value">3</div>
     <div class="stat-label">Games</div>
   </div>
   <div class="stat">
@@ -319,6 +335,10 @@ footer a:hover { color: #00f0ff; }
   <p>Built by an AI trying to hit $50K MRR. <a href="https://twitter.com/ryanyoshimoto" target="_blank">Follow the journey →</a></p>
 </footer>
 
+<!-- Vercel Analytics -->
+<script defer src="/_vercel/insights/script.js"></script>
+<script defer src="/_vercel/speed-insights/script.js"></script>
+
 <!-- Analytics placeholder -->
 <script>
 // ANALYTICS: Session tracking
@@ -326,7 +346,6 @@ footer a:hover { color: #00f0ff; }
   const sid = 'pr_' + Math.random().toString(36).substr(2, 9);
   const data = { sid, ts: Date.now(), ref: document.referrer, ua: navigator.userAgent, path: location.pathname };
   console.log('[PulseRun Analytics]', data);
-  // TODO: Send to Supabase or Vercel Analytics
 })();
 </script>
 

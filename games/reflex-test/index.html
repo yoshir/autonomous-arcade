@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Reflex Test — How Fast Are You? | Pulse Run</title>
+<meta name="description" content="Test your reaction time! Click as fast as you can when the screen turns green. Free online reaction time test — no download.">
+<meta property="og:title" content="Reflex Test — How Fast Are You?">
+<meta property="og:description" content="Test your reaction time! Free online reflex test. No download needed.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://pulse-run.vercel.app/games/reflex-test/">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+body {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: #fff; user-select: none;
+  transition: background 0.15s;
+  cursor: pointer;
+}
+
+.back-link {
+  position: fixed; top: 16px; left: 16px; z-index: 100;
+  color: rgba(255,255,255,0.4); text-decoration: none; font-size: 13px; letter-spacing: 1px;
+  transition: color 0.2s;
+}
+.back-link:hover { color: #fff; }
+
+/* States */
+body.state-idle { background: #1a0a2e; }
+body.state-waiting { background: #8b0000; cursor: default; }
+body.state-ready { background: #00a000; }
+body.state-result { background: #050510; }
+body.state-early { background: #cc6600; }
+
+.container {
+  text-align: center;
+  padding: 24px;
+  max-width: 500px;
+}
+
+.icon { font-size: 80px; margin-bottom: 24px; }
+.title { font-size: 36px; font-weight: 900; letter-spacing: 2px; margin-bottom: 12px; text-shadow: 0 0 30px rgba(255,255,255,0.2); }
+.subtitle { font-size: 16px; opacity: 0.8; line-height: 1.6; }
+.time-display { font-size: 96px; font-weight: 900; letter-spacing: 4px; margin: 16px 0; }
+.time-unit { font-size: 20px; opacity: 0.6; font-weight: 400; }
+.attempt-dots { display: flex; gap: 8px; justify-content: center; margin: 24px 0; }
+.dot { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,0.15); transition: all 0.3s; }
+.dot.done { background: #00f0ff; box-shadow: 0 0 8px rgba(0,240,255,0.5); }
+.dot.current { background: #fff; transform: scale(1.3); }
+
+/* Results card */
+.results-card {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(0,240,255,0.15);
+  border-radius: 16px;
+  padding: 28px;
+  margin-top: 24px;
+}
+.results-grid { display: flex; gap: 24px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap; }
+.result-item { text-align: center; }
+.result-value { font-size: 32px; font-weight: 900; color: #00f0ff; }
+.result-label { font-size: 11px; color: #667; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+
+.history { display: flex; gap: 12px; justify-content: center; margin: 16px 0; flex-wrap: wrap; }
+.history-item {
+  background: rgba(255,255,255,0.05);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 14px;
+  color: #aab;
+}
+.history-item.best { color: #00f0ff; border: 1px solid rgba(0,240,255,0.3); }
+
+.btn-row { display: flex; gap: 12px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+.btn {
+  padding: 12px 28px; border: none; border-radius: 24px; font-size: 14px;
+  font-weight: 700; cursor: pointer; letter-spacing: 1px; text-transform: uppercase;
+  transition: all 0.2s;
+}
+.btn-play { background: #00f0ff; color: #050510; }
+.btn-play:hover { background: #33f5ff; transform: translateY(-2px); }
+.btn-share { background: rgba(255,255,255,0.08); color: #aab; border: 1px solid rgba(255,255,255,0.1); }
+.btn-share:hover { background: rgba(255,255,255,0.12); color: #fff; }
+
+.rating { margin-top: 12px; font-size: 14px; }
+.rating-badge {
+  display: inline-block; padding: 4px 14px; border-radius: 20px;
+  font-weight: 700; letter-spacing: 1px; text-transform: uppercase; font-size: 12px;
+}
+
+/* Mobile */
+@media (max-width: 500px) {
+  .title { font-size: 28px; }
+  .time-display { font-size: 72px; }
+  .icon { font-size: 60px; }
+}
+</style>
+</head>
+<body class="state-idle" onclick="handleClick()">
+
+<a href="/" class="back-link">← All Games</a>
+
+<div class="container" id="content">
+  <!-- Filled by JS -->
+</div>
+
+<script>
+const ROUNDS = 5;
+let state = 'idle'; // idle, waiting, ready, early, result
+let times = [];
+let waitTimeout = null;
+let readyAt = 0;
+let round = 0;
+
+function setStateClass(s) {
+  document.body.className = 'state-' + s;
+  state = s;
+}
+
+function renderDots() {
+  return `<div class="attempt-dots">${
+    Array.from({length: ROUNDS}, (_, i) => {
+      let cls = 'dot';
+      if (i < round) cls += ' done';
+      else if (i === round) cls += ' current';
+      return `<div class="${cls}"></div>`;
+    }).join('')
+  }</div>`;
+}
+
+function showIdle() {
+  setStateClass('idle');
+  times = [];
+  round = 0;
+  document.getElementById('content').innerHTML = `
+    <div class="icon">⚡</div>
+    <div class="title">Reflex Test</div>
+    <div class="subtitle">When the screen turns <b style="color:#00ff00;">GREEN</b>, click as fast as you can!</div>
+    ${renderDots()}
+    <div class="subtitle" style="opacity:0.5; margin-top: 8px;">Click anywhere to start</div>
+  `;
+}
+
+function showWaiting() {
+  setStateClass('waiting');
+  document.getElementById('content').innerHTML = `
+    <div class="icon">🔴</div>
+    <div class="title">Wait for green...</div>
+    <div class="subtitle">Don't click yet!</div>
+    ${renderDots()}
+  `;
+  const delay = 1500 + Math.random() * 4000; // 1.5-5.5s random
+  waitTimeout = setTimeout(() => {
+    readyAt = performance.now();
+    showReady();
+  }, delay);
+}
+
+function showReady() {
+  setStateClass('ready');
+  document.getElementById('content').innerHTML = `
+    <div class="icon">🟢</div>
+    <div class="title" style="font-size: 48px;">CLICK!</div>
+    ${renderDots()}
+  `;
+}
+
+function showEarly() {
+  setStateClass('early');
+  clearTimeout(waitTimeout);
+  document.getElementById('content').innerHTML = `
+    <div class="icon">😬</div>
+    <div class="title">Too early!</div>
+    <div class="subtitle">Wait for the green screen before clicking.</div>
+    ${renderDots()}
+    <div class="subtitle" style="opacity:0.5; margin-top: 16px;">Click to try again</div>
+  `;
+}
+
+function showRoundResult(ms) {
+  setStateClass('result');
+  const rating = getRating(ms);
+  document.getElementById('content').innerHTML = `
+    <div class="time-display">${ms}<span class="time-unit">ms</span></div>
+    <div class="rating"><span class="rating-badge" style="background:${rating.color};color:#000;">${rating.label}</span></div>
+    ${renderDots()}
+    <div class="subtitle" style="opacity:0.5; margin-top: 16px;">${round < ROUNDS ? 'Click to continue' : ''}</div>
+  `;
+  
+  if (round >= ROUNDS) {
+    setTimeout(showFinalResults, 600);
+  }
+}
+
+function showFinalResults() {
+  setStateClass('result');
+  const avg = Math.round(times.reduce((a,b) => a+b, 0) / times.length);
+  const best = Math.min(...times);
+  const worst = Math.max(...times);
+  const rating = getRating(avg);
+  
+  document.getElementById('content').innerHTML = `
+    <div class="title">Results</div>
+    <div class="results-card">
+      <div class="results-grid">
+        <div class="result-item">
+          <div class="result-value">${avg}<span class="time-unit">ms</span></div>
+          <div class="result-label">Average</div>
+        </div>
+        <div class="result-item">
+          <div class="result-value" style="color:#00ff88;">${best}<span class="time-unit">ms</span></div>
+          <div class="result-label">Best</div>
+        </div>
+        <div class="result-item">
+          <div class="result-value" style="color:#ff6688;">${worst}<span class="time-unit">ms</span></div>
+          <div class="result-label">Worst</div>
+        </div>
+      </div>
+      <div class="history">${times.map((t, i) => 
+        `<div class="history-item${t === best ? ' best' : ''}">#${i+1}: ${t}ms</div>`
+      ).join('')}</div>
+      <div class="rating" style="margin-bottom: 16px;">
+        <span class="rating-badge" style="background:${rating.color};color:#000;">${rating.label}</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-play" onclick="event.stopPropagation(); showIdle();">Play Again</button>
+        <button class="btn btn-share" onclick="event.stopPropagation(); shareResult(${avg}, ${best});">Share Score</button>
+      </div>
+    </div>
+  `;
+}
+
+function getRating(ms) {
+  if (ms < 150) return { label: 'Superhuman', color: '#ff00ff' };
+  if (ms < 200) return { label: 'Lightning', color: '#00f0ff' };
+  if (ms < 250) return { label: 'Fast', color: '#00ff88' };
+  if (ms < 300) return { label: 'Average', color: '#ffcc00' };
+  if (ms < 400) return { label: 'Slow', color: '#ff8844' };
+  return { label: 'Sleepy', color: '#ff4444' };
+}
+
+function shareResult(avg, best) {
+  const rating = getRating(avg);
+  const text = `⚡ Reflex Test: ${avg}ms avg (best: ${best}ms) — ${rating.label}!\nCan you beat me? 👇\nhttps://pulse-run-nu.vercel.app/games/reflex-test/`;
+  if (navigator.share) {
+    navigator.share({ title: 'Reflex Test Score', text }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.querySelector('.btn-share');
+      if (btn) { btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Share Score', 2000); }
+    });
+  }
+}
+
+function handleClick() {
+  switch (state) {
+    case 'idle':
+      round = 0;
+      times = [];
+      showWaiting();
+      break;
+    case 'waiting':
+      showEarly();
+      break;
+    case 'ready':
+      const ms = Math.round(performance.now() - readyAt);
+      times.push(ms);
+      round++;
+      showRoundResult(ms);
+      break;
+    case 'early':
+      showWaiting();
+      break;
+    case 'result':
+      if (round < ROUNDS) {
+        showWaiting();
+      }
+      break;
+  }
+}
+
+// Prevent double-tap zoom on mobile
+document.addEventListener('touchend', e => e.preventDefault(), { passive: false });
+
+// Init
+showIdle();
+
+// Analytics
+(function() {
+  const sid = 'rt_' + Math.random().toString(36).substr(2, 9);
+  console.log('[PulseRun Analytics]', { sid, ts: Date.now(), game: 'reflex-test', path: location.pathname });
+})();
+</script>
+
+<script defer src="/_vercel/insights/script.js"></script>
+<script defer src="/_vercel/speed-insights/script.js"></script>
+</body>
+</html>
