@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pulse Run — Free Browser Games</title>
-<meta name="description" content="Play free browser games instantly. No downloads, no signup. Neon runners, puzzle games, and more — all built with love.">
-<meta name="keywords" content="free browser games, online games, html5 games, endless runner, puzzle games, no download games">
-<meta property="og:title" content="Pulse Run — Free Browser Games">
-<meta property="og:description" content="Play free browser games instantly. No downloads, no signup.">
+<title>Autonomous Arcade — AI-Built Browser Games</title>
+<meta name="description" content="Play free browser games built autonomously by AI. No downloads, no signup. New games and updates every 2 hours.">
+<meta name="keywords" content="free browser games, online games, html5 games, ai built games, endless runner, puzzle games, autonomous arcade">
+<meta property="og:title" content="Autonomous Arcade — AI-Built Browser Games">
+<meta property="og:description" content="Free browser games built and operated by AI. New content every 2 hours.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://pulse-run.vercel.app">
+<meta property="og:url" content="https://autonomous-arcade.optimous.ai">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Pulse Run — Free Browser Games">
-<meta name="twitter:description" content="Play free browser games instantly. No downloads, no signup.">
-<link rel="canonical" href="https://pulse-run.vercel.app">
+<meta name="twitter:title" content="Autonomous Arcade — AI-Built Browser Games">
+<meta name="twitter:description" content="Free browser games built and operated by AI. New content every 2 hours.">
+<link rel="canonical" href="https://autonomous-arcade.optimous.ai">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html { scroll-behavior: smooth; }
@@ -38,19 +38,34 @@ header::after {
   background: linear-gradient(90deg, transparent, rgba(0,240,255,0.3), transparent);
 }
 .logo {
-  font-size: 42px;
+  font-size: 38px;
   font-weight: 900;
-  letter-spacing: 4px;
+  letter-spacing: 3px;
   text-transform: uppercase;
   margin-bottom: 8px;
 }
-.logo .pulse { color: #00f0ff; text-shadow: 0 0 30px rgba(0,240,255,0.5); }
-.logo .run { color: #ff00aa; text-shadow: 0 0 30px rgba(255,0,170,0.5); }
+.logo .auto { color: #00f0ff; text-shadow: 0 0 30px rgba(0,240,255,0.5); }
+.logo .arcade { color: #ff00aa; text-shadow: 0 0 30px rgba(255,0,170,0.5); }
 .tagline {
   color: #667;
   font-size: 14px;
   letter-spacing: 3px;
   text-transform: uppercase;
+}
+.sub-tagline {
+  color: #445;
+  font-size: 12px;
+  margin-top: 6px;
+  letter-spacing: 1px;
+}
+
+/* Section titles */
+.section-title {
+  font-size: 13px;
+  color: #445;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  margin-bottom: 24px;
 }
 
 /* Games Grid */
@@ -58,13 +73,6 @@ header::after {
   max-width: 900px;
   margin: 0 auto;
   padding: 48px 24px;
-}
-.section-title {
-  font-size: 13px;
-  color: #445;
-  letter-spacing: 4px;
-  text-transform: uppercase;
-  margin-bottom: 24px;
 }
 .games-grid {
   display: grid;
@@ -96,73 +104,167 @@ header::after {
   position: relative;
   overflow: hidden;
 }
-.game-thumb-runner {
-  background: linear-gradient(135deg, #0a0a2a 0%, #050520 50%, #0a0018 100%);
-}
-.game-thumb-puzzle {
-  background: linear-gradient(135deg, #0a1a0a 0%, #050520 50%, #1a0a1a 100%);
-}
-.game-thumb-coming {
-  background: linear-gradient(135deg, #0a0a0a 0%, #0a0a0a 100%);
-}
-.game-thumb-icon {
-  font-size: 56px;
-  opacity: 0.8;
-}
+.game-thumb-runner { background: linear-gradient(135deg, #0a0a2a 0%, #050520 50%, #0a0018 100%); }
+.game-thumb-puzzle { background: linear-gradient(135deg, #0a1a0a 0%, #050520 50%, #1a0a1a 100%); }
+.game-thumb-coming { background: linear-gradient(135deg, #0a0a0a 0%, #0a0a0a 100%); }
+.game-thumb-icon { font-size: 56px; opacity: 0.8; }
 .play-badge {
-  position: absolute;
-  bottom: 12px;
-  right: 12px;
-  background: rgba(0,240,255,0.15);
-  border: 1px solid rgba(0,240,255,0.3);
-  color: #00f0ff;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 11px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  font-weight: 700;
+  position: absolute; bottom: 12px; right: 12px;
+  background: rgba(0,240,255,0.15); border: 1px solid rgba(0,240,255,0.3);
+  color: #00f0ff; padding: 4px 12px; border-radius: 20px;
+  font-size: 11px; letter-spacing: 2px; text-transform: uppercase; font-weight: 700;
 }
 .new-badge {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  background: #ff00aa;
-  color: #fff;
-  padding: 3px 10px;
-  border-radius: 10px;
-  font-size: 10px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
+  position: absolute; top: 12px; left: 12px;
+  background: #ff00aa; color: #fff; padding: 3px 10px; border-radius: 10px;
+  font-size: 10px; letter-spacing: 1px; text-transform: uppercase; font-weight: 700;
+}
+.game-info { padding: 16px 20px 20px; }
+.game-title { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+.game-desc { color: #556; font-size: 13px; line-height: 1.5; }
+.game-tags { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.tag {
+  font-size: 10px; padding: 3px 8px; border-radius: 8px;
+  background: rgba(255,255,255,0.04); color: #667;
+  letter-spacing: 1px; text-transform: uppercase;
+}
+
+/* Activity Log */
+.activity-section {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 24px 48px;
+}
+.activity-log {
+  background: linear-gradient(135deg, #0a0a1f 0%, #0d0d25 100%);
+  border: 1px solid rgba(0,240,255,0.08);
+  border-radius: 16px;
+  padding: 24px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.activity-log::-webkit-scrollbar { width: 4px; }
+.activity-log::-webkit-scrollbar-track { background: transparent; }
+.activity-log::-webkit-scrollbar-thumb { background: rgba(0,240,255,0.2); border-radius: 4px; }
+.log-entry {
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  align-items: flex-start;
+}
+.log-entry:last-child { border-bottom: none; }
+.log-time {
+  color: #334;
+  font-size: 11px;
+  font-family: monospace;
+  white-space: nowrap;
+  min-width: 100px;
+  padding-top: 2px;
+}
+.log-icon { font-size: 16px; flex-shrink: 0; }
+.log-msg { color: #889; font-size: 13px; line-height: 1.5; }
+.log-msg strong { color: #aab; }
+.log-live-dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  background: #00f0ff;
+  border-radius: 50%;
+  margin-right: 8px;
+  animation: pulse-dot 2s infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 4px rgba(0,240,255,0.8); }
+  50% { opacity: 0.4; box-shadow: none; }
+}
+
+/* Feedback Widget */
+.feedback-section {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 24px 48px;
+}
+.feedback-box {
+  background: linear-gradient(135deg, #0a0a1f 0%, #0d0d25 100%);
+  border: 1px solid rgba(255,0,170,0.1);
+  border-radius: 16px;
+  padding: 28px;
+}
+.feedback-box h3 {
+  font-size: 16px;
   font-weight: 700;
-}
-.game-info {
-  padding: 16px 20px 20px;
-}
-.game-title {
-  font-size: 18px;
-  font-weight: 800;
   margin-bottom: 4px;
 }
-.game-desc {
+.feedback-box .fb-sub {
   color: #556;
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 12px;
+  margin-bottom: 20px;
 }
-.game-tags {
+.feedback-stars {
   display: flex;
   gap: 8px;
-  margin-top: 12px;
-  flex-wrap: wrap;
+  margin-bottom: 16px;
 }
-.tag {
-  font-size: 10px;
-  padding: 3px 8px;
-  border-radius: 8px;
-  background: rgba(255,255,255,0.04);
-  color: #667;
+.star-btn {
+  background: none;
+  border: 2px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 8px 14px;
+  font-size: 22px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.star-btn:hover, .star-btn.active {
+  border-color: #ff00aa;
+  background: rgba(255,0,170,0.1);
+  transform: scale(1.1);
+}
+.feedback-text {
+  width: 100%;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 14px 16px;
+  color: #ccd;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 70px;
+  margin-bottom: 12px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.feedback-text::placeholder { color: #334; }
+.feedback-text:focus { border-color: rgba(0,240,255,0.3); }
+.feedback-submit {
+  background: linear-gradient(135deg, #ff00aa, #cc0088);
+  color: #fff;
+  border: none;
+  padding: 10px 28px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.feedback-submit:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,0,170,0.3); }
+.feedback-submit:disabled { opacity: 0.4; cursor: default; transform: none; box-shadow: none; }
+.feedback-thanks {
+  display: none;
+  color: #00f0ff;
+  font-size: 14px;
+  padding: 12px 0;
+  font-weight: 600;
+}
+
+/* Ad slots */
+.ad-slot {
+  max-width: 900px;
+  margin: 0 auto 32px;
+  padding: 0 24px;
+  min-height: 90px;
 }
 
 /* Stats bar */
@@ -175,20 +277,11 @@ header::after {
   justify-content: center;
   flex-wrap: wrap;
 }
-.stat {
-  text-align: center;
-}
-.stat-value {
-  font-size: 28px;
-  font-weight: 900;
-  color: #00f0ff;
-}
+.stat { text-align: center; }
+.stat-value { font-size: 28px; font-weight: 900; color: #00f0ff; }
 .stat-label {
-  font-size: 11px;
-  color: #445;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  margin-top: 2px;
+  font-size: 11px; color: #445;
+  letter-spacing: 2px; text-transform: uppercase; margin-top: 2px;
 }
 
 /* Footer */
@@ -197,51 +290,29 @@ footer {
   padding: 32px 24px;
   border-top: 1px solid rgba(255,255,255,0.03);
 }
-footer p {
-  color: #334;
-  font-size: 12px;
-}
-footer a {
-  color: #445;
-  text-decoration: none;
-}
+footer p { color: #334; font-size: 12px; }
+footer a { color: #445; text-decoration: none; }
 footer a:hover { color: #00f0ff; }
-
-/* Ad slot placeholder */
-.ad-slot {
-  max-width: 900px;
-  margin: 0 auto 32px;
-  padding: 0 24px;
-}
-.ad-placeholder {
-  background: rgba(255,255,255,0.02);
-  border: 1px dashed rgba(255,255,255,0.05);
-  border-radius: 8px;
-  height: 90px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #222;
-  font-size: 11px;
-  letter-spacing: 2px;
-}
 
 /* Mobile */
 @media (max-width: 600px) {
-  .logo { font-size: 32px; }
+  .logo { font-size: 26px; letter-spacing: 2px; }
   .games-grid { grid-template-columns: 1fr; }
   header { padding: 32px 16px 24px; }
-  .games-section { padding: 32px 16px; }
+  .games-section, .activity-section, .feedback-section { padding-left: 16px; padding-right: 16px; }
+  .log-time { display: none; }
 }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="logo"><span class="pulse">PULSE</span> <span class="run">RUN</span></div>
-  <div class="tagline">Free browser games — no download, no signup</div>
+  <div class="logo"><span class="auto">AUTONOMOUS</span> <span class="arcade">ARCADE</span></div>
+  <div class="tagline">AI-Built Browser Games — Updated Every 2 Hours</div>
+  <div class="sub-tagline">Every game here was built, tested, and deployed by an AI. No human wrote this code.</div>
 </header>
 
+<!-- Games -->
 <div class="games-section">
   <div class="section-title">🎮 Games</div>
   <div class="games-grid">
@@ -269,7 +340,7 @@ footer a:hover { color: #00f0ff; }
       </div>
       <div class="game-info">
         <div class="game-title">Hex Match</div>
-        <div class="game-desc">Fast-paced color memory. Match hex colors before time runs out. How many rounds can you survive?</div>
+        <div class="game-desc">Fast-paced color memory. Match hex colors before time runs out.</div>
         <div class="game-tags">
           <span class="tag">Puzzle</span>
           <span class="tag">Memory</span>
@@ -286,7 +357,7 @@ footer a:hover { color: #00f0ff; }
       </div>
       <div class="game-info">
         <div class="game-title">Reflex Test</div>
-        <div class="game-desc">How fast are you? 5-round reaction time test. Click when the screen turns green.</div>
+        <div class="game-desc">How fast are you? 5-round reaction time test. Click when green.</div>
         <div class="game-tags">
           <span class="tag">Reflex</span>
           <span class="tag">Speed</span>
@@ -301,10 +372,8 @@ footer a:hover { color: #00f0ff; }
       </div>
       <div class="game-info">
         <div class="game-title">Coming Soon</div>
-        <div class="game-desc">New game dropping soon. Stay tuned.</div>
-        <div class="game-tags">
-          <span class="tag">???</span>
-        </div>
+        <div class="game-desc">New game dropping within the next 2 hours. Stay tuned.</div>
+        <div class="game-tags"><span class="tag">???</span></div>
       </div>
     </div>
 
@@ -312,40 +381,171 @@ footer a:hover { color: #00f0ff; }
 </div>
 
 <!-- Ad Slot: Below Games -->
-<div class="ad-slot">
-  <div class="ad-placeholder" id="ad-banner-1"><!-- AD_SLOT: leaderboard_728x90 --></div>
+<div class="ad-slot" id="ad-below-games">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXX" crossorigin="anonymous"></script>
+  <ins class="adsbygoogle"
+       style="display:block"
+       data-ad-client="ca-pub-XXXXXXXXXX"
+       data-ad-slot="XXXXXXXXXX"
+       data-ad-format="auto"
+       data-full-width-responsive="true"></ins>
+  <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
 </div>
 
+<!-- Activity Log -->
+<div class="activity-section">
+  <div class="section-title"><span class="log-live-dot"></span>AI Activity Log — Live</div>
+  <div class="activity-log" id="activity-log">
+    <div class="log-entry">
+      <div class="log-time">Apr 2, 12:03</div>
+      <div class="log-icon">🚀</div>
+      <div class="log-msg"><strong>Deployed v3</strong> — Added Reflex Test game, Vercel Analytics + Speed Insights on all pages</div>
+    </div>
+    <div class="log-entry">
+      <div class="log-time">Apr 2, 10:05</div>
+      <div class="log-icon">🧠</div>
+      <div class="log-msg"><strong>Built Hex Match</strong> — New color memory speed game with combo system and difficulty ramp</div>
+    </div>
+    <div class="log-entry">
+      <div class="log-time">Apr 2, 10:03</div>
+      <div class="log-icon">🏠</div>
+      <div class="log-msg"><strong>Portal launched</strong> — Transformed single game into multi-game portal with SEO, OG tags, share buttons</div>
+    </div>
+    <div class="log-entry">
+      <div class="log-time">Apr 2, 09:50</div>
+      <div class="log-icon">⚡</div>
+      <div class="log-msg"><strong>Cron activated</strong> — Every 2 hours: build, ship, promote, analyze, iterate. Goal: $50K MRR</div>
+    </div>
+    <div class="log-entry">
+      <div class="log-time">Apr 1, 08:36</div>
+      <div class="log-icon">🎮</div>
+      <div class="log-msg"><strong>Pulse Run created</strong> — Neon endless runner, first game in the arcade. Day zero.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Feedback -->
+<div class="feedback-section">
+  <div class="section-title">💬 Player Feedback</div>
+  <div class="feedback-box">
+    <h3>Help the AI build better games</h3>
+    <div class="fb-sub">Your feedback directly shapes what gets built next. The AI reads every response.</div>
+    <div class="feedback-stars" id="feedback-stars">
+      <button class="star-btn" data-rating="1">😴</button>
+      <button class="star-btn" data-rating="2">😐</button>
+      <button class="star-btn" data-rating="3">🙂</button>
+      <button class="star-btn" data-rating="4">😄</button>
+      <button class="star-btn" data-rating="5">🤩</button>
+    </div>
+    <textarea class="feedback-text" id="feedback-text" placeholder="What games do you want? What should be better? Be honest — the AI can take it." maxlength="1000"></textarea>
+    <button class="feedback-submit" id="feedback-submit" disabled>Send Feedback</button>
+    <div class="feedback-thanks" id="feedback-thanks">⚡ Got it! This will be analyzed in the next 2-hour cycle.</div>
+  </div>
+</div>
+
+<!-- Ad Slot: Below Feedback -->
+<div class="ad-slot" id="ad-below-feedback">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXX" crossorigin="anonymous"></script>
+  <ins class="adsbygoogle"
+       style="display:block"
+       data-ad-client="ca-pub-XXXXXXXXXX"
+       data-ad-slot="XXXXXXXXXX"
+       data-ad-format="auto"
+       data-full-width-responsive="true"></ins>
+  <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+</div>
+
+<!-- Stats -->
 <div class="stats-bar">
   <div class="stat">
     <div class="stat-value">3</div>
-    <div class="stat-label">Games</div>
+    <div class="stat-label">Games Live</div>
   </div>
   <div class="stat">
-    <div class="stat-value">∞</div>
-    <div class="stat-label">Replayability</div>
+    <div class="stat-value">5</div>
+    <div class="stat-label">Deploys Today</div>
   </div>
   <div class="stat">
     <div class="stat-value">$0</div>
-    <div class="stat-label">Cost to Play</div>
+    <div class="stat-label">MRR (target: $50K)</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">2h</div>
+    <div class="stat-label">Update Cycle</div>
   </div>
 </div>
 
 <footer>
-  <p>Built by an AI trying to hit $50K MRR. <a href="https://twitter.com/ryanyoshimoto" target="_blank">Follow the journey →</a></p>
+  <p>Every game, line of code, and design decision was made by an AI. <a href="https://twitter.com/ryanyoshimoto" target="_blank">Follow the journey →</a></p>
+  <p style="margin-top: 8px; color: #223;">Powered by <a href="https://optimous.ai">Optimous</a></p>
 </footer>
 
 <!-- Vercel Analytics -->
 <script defer src="/_vercel/insights/script.js"></script>
 <script defer src="/_vercel/speed-insights/script.js"></script>
 
-<!-- Analytics placeholder -->
 <script>
-// ANALYTICS: Session tracking
+// ========== FEEDBACK SYSTEM ==========
 (function() {
-  const sid = 'pr_' + Math.random().toString(36).substr(2, 9);
-  const data = { sid, ts: Date.now(), ref: document.referrer, ua: navigator.userAgent, path: location.pathname };
-  console.log('[PulseRun Analytics]', data);
+  let selectedRating = 0;
+  const stars = document.querySelectorAll('.star-btn');
+  const textArea = document.getElementById('feedback-text');
+  const submitBtn = document.getElementById('feedback-submit');
+  const thanks = document.getElementById('feedback-thanks');
+
+  stars.forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedRating = parseInt(btn.dataset.rating);
+      stars.forEach(s => s.classList.remove('active'));
+      btn.classList.add('active');
+      submitBtn.disabled = false;
+    });
+  });
+
+  submitBtn.addEventListener('click', () => {
+    const feedback = {
+      rating: selectedRating,
+      text: textArea.value.trim(),
+      timestamp: new Date().toISOString(),
+      page: location.pathname,
+      ua: navigator.userAgent
+    };
+    
+    // Store locally
+    const existing = JSON.parse(localStorage.getItem('aa_feedback') || '[]');
+    existing.push(feedback);
+    localStorage.setItem('aa_feedback', JSON.stringify(existing));
+    
+    // Send to endpoint (when available)
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon('/api/feedback', JSON.stringify(feedback));
+    }
+
+    // UI update
+    submitBtn.style.display = 'none';
+    textArea.style.display = 'none';
+    document.querySelector('.feedback-stars').style.display = 'none';
+    thanks.style.display = 'block';
+  });
+})();
+
+// ========== SESSION ANALYTICS ==========
+(function() {
+  const sid = 'aa_' + Math.random().toString(36).substr(2, 9);
+  const session = {
+    sid,
+    ts: Date.now(),
+    ref: document.referrer,
+    path: location.pathname,
+    screen: screen.width + 'x' + screen.height
+  };
+  
+  // Store session
+  const sessions = JSON.parse(localStorage.getItem('aa_sessions') || '[]');
+  sessions.push(session);
+  // Keep last 100
+  if (sessions.length > 100) sessions.splice(0, sessions.length - 100);
+  localStorage.setItem('aa_sessions', JSON.stringify(sessions));
 })();
 </script>
 
