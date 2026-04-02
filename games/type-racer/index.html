@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Type Racer — Free Typing Speed Test | Autonomous Arcade</title>
+<meta name="description" content="Test your typing speed in 30 seconds. Get your WPM, accuracy, and rating. Free, no signup. Challenge your friends!">
+<meta name="keywords" content="typing test, typing speed test, wpm test, words per minute, free typing test, keyboard speed test">
+<meta property="og:title" content="Type Racer — How Fast Can You Type?">
+<meta property="og:description" content="30-second typing speed test. Get your WPM score and share it.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://autonomous-arcade.optimous.ai/games/type-racer/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Type Racer — Free Typing Speed Test">
+<meta name="twitter:description" content="I got my WPM score! How fast can you type? Try it free.">
+<link rel="canonical" href="https://autonomous-arcade.optimous.ai/games/type-racer/">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  min-height: 100vh;
+  background: #050510;
+  color: #fff;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.back-link {
+  position: fixed; top: 16px; left: 16px;
+  color: #445; text-decoration: none; font-size: 13px;
+  letter-spacing: 1px; z-index: 100;
+  transition: color 0.2s;
+}
+.back-link:hover { color: #00f0ff; }
+
+.container {
+  max-width: 720px;
+  width: 100%;
+  padding: 60px 24px 40px;
+}
+
+h1 {
+  font-size: 32px;
+  font-weight: 900;
+  text-align: center;
+  margin-bottom: 4px;
+}
+h1 .accent { color: #f5a623; text-shadow: 0 0 30px rgba(245,166,35,0.4); }
+.subtitle {
+  text-align: center;
+  color: #556;
+  font-size: 14px;
+  margin-bottom: 36px;
+}
+
+/* Timer bar */
+.timer-bar {
+  height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+.timer-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #00f0ff, #f5a623);
+  border-radius: 3px;
+  width: 100%;
+  transition: width 0.1s linear;
+}
+
+.timer-text {
+  text-align: center;
+  font-size: 42px;
+  font-weight: 900;
+  color: #00f0ff;
+  font-family: monospace;
+  margin-bottom: 20px;
+  text-shadow: 0 0 20px rgba(0,240,255,0.3);
+}
+
+/* Typing area */
+.text-display {
+  background: linear-gradient(135deg, #0a0a1f 0%, #0f0f2a 100%);
+  border: 1px solid rgba(0,240,255,0.1);
+  border-radius: 16px;
+  padding: 28px;
+  font-size: 20px;
+  line-height: 1.8;
+  margin-bottom: 20px;
+  min-height: 140px;
+  letter-spacing: 0.5px;
+  font-family: 'Courier New', monospace;
+  user-select: none;
+}
+.text-display .correct { color: #00f0ff; }
+.text-display .incorrect { color: #ff4466; background: rgba(255,68,102,0.15); border-radius: 2px; }
+.text-display .current { 
+  border-bottom: 2px solid #f5a623;
+  color: #fff;
+}
+.text-display .untyped { color: #334; }
+
+.input-area {
+  position: relative;
+}
+.type-input {
+  width: 100%;
+  background: rgba(255,255,255,0.03);
+  border: 2px solid rgba(0,240,255,0.15);
+  border-radius: 14px;
+  padding: 16px 20px;
+  color: #fff;
+  font-size: 18px;
+  font-family: 'Courier New', monospace;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.type-input:focus { border-color: rgba(0,240,255,0.4); }
+.type-input::placeholder { color: #334; }
+.type-input:disabled { opacity: 0.3; }
+
+/* Start screen */
+.start-screen {
+  text-align: center;
+  padding: 60px 20px;
+}
+.start-btn {
+  background: linear-gradient(135deg, #f5a623, #e09000);
+  color: #000;
+  border: none;
+  padding: 16px 48px;
+  border-radius: 14px;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.start-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 30px rgba(245,166,35,0.4); }
+.start-hint {
+  color: #445;
+  font-size: 12px;
+  margin-top: 16px;
+  letter-spacing: 1px;
+}
+
+/* Results */
+.results {
+  display: none;
+  text-align: center;
+  padding: 20px 0;
+}
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin: 24px 0;
+}
+.result-card {
+  background: linear-gradient(135deg, #0a0a1f 0%, #0f0f2a 100%);
+  border: 1px solid rgba(0,240,255,0.1);
+  border-radius: 14px;
+  padding: 20px 16px;
+}
+.result-value {
+  font-size: 36px;
+  font-weight: 900;
+  color: #00f0ff;
+}
+.result-label {
+  font-size: 11px;
+  color: #556;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+.result-rating {
+  font-size: 20px;
+  font-weight: 800;
+  margin: 16px 0 24px;
+  padding: 12px 24px;
+  border-radius: 12px;
+  display: inline-block;
+}
+
+.btn-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.retry-btn {
+  background: linear-gradient(135deg, #f5a623, #e09000);
+  color: #000;
+  border: none;
+  padding: 12px 32px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.retry-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(245,166,35,0.3); }
+.share-btn {
+  background: rgba(0,240,255,0.1);
+  border: 1px solid rgba(0,240,255,0.3);
+  color: #00f0ff;
+  padding: 12px 32px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.share-btn:hover { background: rgba(0,240,255,0.2); }
+
+/* Live stats */
+.live-stats {
+  display: none;
+  justify-content: center;
+  gap: 32px;
+  margin-top: 16px;
+}
+.live-stat { text-align: center; }
+.live-stat-value { font-size: 20px; font-weight: 800; color: #f5a623; }
+.live-stat-label { font-size: 10px; color: #445; letter-spacing: 1px; text-transform: uppercase; }
+
+/* Mobile */
+@media (max-width: 600px) {
+  h1 { font-size: 24px; }
+  .text-display { font-size: 16px; padding: 20px; }
+  .type-input { font-size: 16px; }
+  .results-grid { grid-template-columns: 1fr; gap: 12px; }
+  .result-value { font-size: 28px; }
+  .timer-text { font-size: 32px; }
+}
+</style>
+</head>
+<body>
+
+<a href="/" class="back-link">← Autonomous Arcade</a>
+
+<div class="container">
+  <h1>⌨️ <span class="accent">Type Racer</span></h1>
+  <div class="subtitle">30-second typing speed test — how fast are you?</div>
+
+  <div class="timer-bar"><div class="timer-fill" id="timer-fill"></div></div>
+  <div class="timer-text" id="timer-text">30</div>
+
+  <div id="start-screen" class="start-screen">
+    <button class="start-btn" id="start-btn">Start Typing Test</button>
+    <div class="start-hint">You'll have 30 seconds. Type the text as fast and accurately as you can.</div>
+  </div>
+
+  <div id="game-area" style="display:none;">
+    <div class="text-display" id="text-display"></div>
+    <div class="input-area">
+      <input type="text" class="type-input" id="type-input" placeholder="Start typing here..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    </div>
+    <div class="live-stats" id="live-stats">
+      <div class="live-stat">
+        <div class="live-stat-value" id="live-wpm">0</div>
+        <div class="live-stat-label">WPM</div>
+      </div>
+      <div class="live-stat">
+        <div class="live-stat-value" id="live-acc">100%</div>
+        <div class="live-stat-label">Accuracy</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="results" id="results">
+    <div class="results-grid">
+      <div class="result-card">
+        <div class="result-value" id="res-wpm">0</div>
+        <div class="result-label">Words/Min</div>
+      </div>
+      <div class="result-card">
+        <div class="result-value" id="res-acc">0%</div>
+        <div class="result-label">Accuracy</div>
+      </div>
+      <div class="result-card">
+        <div class="result-value" id="res-chars">0</div>
+        <div class="result-label">Characters</div>
+      </div>
+    </div>
+    <div class="result-rating" id="res-rating"></div>
+    <div class="btn-row">
+      <button class="retry-btn" id="retry-btn">Try Again</button>
+      <button class="share-btn" id="share-btn">Share Score</button>
+    </div>
+  </div>
+</div>
+
+<script defer src="/_vercel/insights/script.js"></script>
+<script defer src="/_vercel/speed-insights/script.js"></script>
+
+<script>
+const SENTENCES = [
+  "The quick brown fox jumps over the lazy dog near the riverbank where flowers bloom in spring.",
+  "Technology has transformed how we communicate and share information across the globe every day.",
+  "She packed her bags carefully knowing the journey ahead would test every ounce of her strength.",
+  "Coffee is not just a beverage it is a ritual that marks the beginning of productive mornings.",
+  "The ancient library held secrets that no one had dared to uncover for over a thousand years.",
+  "Musicians practice scales and chords for hours before they can play a single song beautifully.",
+  "Every great idea starts as a small spark that grows into a flame when given enough oxygen.",
+  "The mountain trail was steep and winding but the view from the summit made it all worthwhile.",
+  "Digital art has opened new frontiers for creative expression that were impossible just decades ago.",
+  "Running through the rain she realized that sometimes the best moments are completely unplanned.",
+  "Programmers spend more time reading code than writing it which is why clean code matters so much.",
+  "The ocean waves crashed against the rocks with a rhythm that seemed to echo the heartbeat of earth.",
+  "Learning a new language opens doors to cultures and perspectives you never knew existed before today.",
+  "The chef carefully arranged each ingredient on the plate turning a simple meal into edible artwork.",
+  "Starlight traveled millions of years just to reach your eyes on this quiet Tuesday evening.",
+  "Building good habits requires patience and consistency but the compound effects are extraordinary.",
+  "The bookstore on the corner had a charm that no online retailer could ever hope to replicate.",
+  "Innovation happens at the intersection of curiosity and courage where failure is just another lesson.",
+  "Autumn leaves painted the sidewalk in shades of amber gold and crimson as the wind danced through.",
+  "The best conversations happen late at night when the world is quiet and honesty flows more freely.",
+];
+
+const DURATION = 30;
+let gameState = 'idle'; // idle, playing, done
+let text = '';
+let charIndex = 0;
+let correctChars = 0;
+let totalKeystrokes = 0;
+let timer = null;
+let timeLeft = DURATION;
+let startTime = 0;
+
+const timerFill = document.getElementById('timer-fill');
+const timerText = document.getElementById('timer-text');
+const startScreen = document.getElementById('start-screen');
+const gameArea = document.getElementById('game-area');
+const textDisplay = document.getElementById('text-display');
+const typeInput = document.getElementById('type-input');
+const liveStats = document.getElementById('live-stats');
+const results = document.getElementById('results');
+
+function pickText() {
+  // Pick 2-3 random sentences
+  const shuffled = [...SENTENCES].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, 3).join(' ');
+}
+
+function renderText() {
+  let html = '';
+  for (let i = 0; i < text.length; i++) {
+    if (i < charIndex) {
+      html += `<span class="correct">${text[i]}</span>`;
+    } else if (i === charIndex) {
+      html += `<span class="current">${text[i]}</span>`;
+    } else {
+      html += `<span class="untyped">${text[i]}</span>`;
+    }
+  }
+  textDisplay.innerHTML = html;
+}
+
+function startGame() {
+  text = pickText();
+  charIndex = 0;
+  correctChars = 0;
+  totalKeystrokes = 0;
+  timeLeft = DURATION;
+  gameState = 'playing';
+  startTime = Date.now();
+
+  startScreen.style.display = 'none';
+  results.style.display = 'none';
+  gameArea.style.display = 'block';
+  liveStats.style.display = 'flex';
+  typeInput.value = '';
+  typeInput.disabled = false;
+  typeInput.focus();
+  
+  renderText();
+  updateTimer();
+
+  timer = setInterval(() => {
+    timeLeft--;
+    updateTimer();
+    updateLiveStats();
+    if (timeLeft <= 0) endGame();
+  }, 1000);
+}
+
+function updateTimer() {
+  timerText.textContent = timeLeft;
+  timerFill.style.width = (timeLeft / DURATION * 100) + '%';
+  if (timeLeft <= 5) {
+    timerText.style.color = '#ff4466';
+    timerFill.style.background = '#ff4466';
+  } else {
+    timerText.style.color = '#00f0ff';
+    timerFill.style.background = 'linear-gradient(90deg, #00f0ff, #f5a623)';
+  }
+}
+
+function updateLiveStats() {
+  const elapsed = (Date.now() - startTime) / 1000 / 60; // minutes
+  const wpm = elapsed > 0 ? Math.round((correctChars / 5) / elapsed) : 0;
+  const acc = totalKeystrokes > 0 ? Math.round((correctChars / totalKeystrokes) * 100) : 100;
+  document.getElementById('live-wpm').textContent = wpm;
+  document.getElementById('live-acc').textContent = acc + '%';
+}
+
+typeInput.addEventListener('input', (e) => {
+  if (gameState !== 'playing') return;
+  
+  const val = e.target.value;
+  const lastChar = val[val.length - 1];
+  
+  if (lastChar === undefined) return; // backspace
+  
+  totalKeystrokes++;
+  
+  if (lastChar === text[charIndex]) {
+    correctChars++;
+    charIndex++;
+    typeInput.value = '';
+    
+    // Check if all text typed
+    if (charIndex >= text.length) {
+      // Add more text
+      text += ' ' + pickText();
+    }
+    
+    renderText();
+    
+    // Auto-scroll display if needed
+    const currentEl = textDisplay.querySelector('.current');
+    if (currentEl) {
+      currentEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  } else {
+    // Wrong character - flash red
+    typeInput.style.borderColor = 'rgba(255,68,102,0.6)';
+    setTimeout(() => { typeInput.style.borderColor = 'rgba(0,240,255,0.15)'; }, 200);
+    typeInput.value = '';
+    
+    // Mark incorrect in display
+    if (charIndex < text.length) {
+      const spans = textDisplay.querySelectorAll('span');
+      if (spans[charIndex]) {
+        spans[charIndex].className = 'incorrect';
+        setTimeout(() => {
+          spans[charIndex].className = 'current';
+        }, 300);
+      }
+    }
+  }
+  
+  updateLiveStats();
+});
+
+// Prevent paste
+typeInput.addEventListener('paste', e => e.preventDefault());
+
+function endGame() {
+  clearInterval(timer);
+  gameState = 'done';
+  typeInput.disabled = true;
+  liveStats.style.display = 'none';
+
+  const wpm = Math.round((correctChars / 5) / (DURATION / 60));
+  const accuracy = totalKeystrokes > 0 ? Math.round((correctChars / totalKeystrokes) * 100) : 0;
+
+  document.getElementById('res-wpm').textContent = wpm;
+  document.getElementById('res-acc').textContent = accuracy + '%';
+  document.getElementById('res-chars').textContent = correctChars;
+
+  // Rating
+  const rating = document.getElementById('res-rating');
+  let ratingText, ratingBg, ratingColor;
+  if (wpm >= 100) { ratingText = '🏆 Speed Demon'; ratingBg = 'rgba(245,166,35,0.15)'; ratingColor = '#f5a623'; }
+  else if (wpm >= 80) { ratingText = '⚡ Lightning Fast'; ratingBg = 'rgba(0,240,255,0.15)'; ratingColor = '#00f0ff'; }
+  else if (wpm >= 60) { ratingText = '🔥 Fast Typer'; ratingBg = 'rgba(255,100,50,0.15)'; ratingColor = '#ff6432'; }
+  else if (wpm >= 40) { ratingText = '✅ Above Average'; ratingBg = 'rgba(100,255,100,0.15)'; ratingColor = '#64ff64'; }
+  else if (wpm >= 25) { ratingText = '📝 Getting There'; ratingBg = 'rgba(255,255,255,0.05)'; ratingColor = '#889'; }
+  else { ratingText = '🐌 Keep Practicing'; ratingBg = 'rgba(255,255,255,0.03)'; ratingColor = '#556'; }
+  
+  rating.textContent = ratingText;
+  rating.style.background = ratingBg;
+  rating.style.color = ratingColor;
+
+  gameArea.style.display = 'none';
+  results.style.display = 'block';
+
+  // Save score
+  const scores = JSON.parse(localStorage.getItem('aa_typeracer_scores') || '[]');
+  scores.push({ wpm, accuracy, chars: correctChars, ts: Date.now() });
+  if (scores.length > 50) scores.splice(0, scores.length - 50);
+  localStorage.setItem('aa_typeracer_scores', JSON.stringify(scores));
+
+  // Analytics beacon
+  if (navigator.sendBeacon) {
+    navigator.sendBeacon('/api/score', JSON.stringify({ game: 'type-racer', wpm, accuracy, chars: correctChars }));
+  }
+}
+
+document.getElementById('start-btn').addEventListener('click', startGame);
+document.getElementById('retry-btn').addEventListener('click', () => {
+  results.style.display = 'none';
+  startGame();
+});
+
+// Share
+document.getElementById('share-btn').addEventListener('click', () => {
+  const wpm = document.getElementById('res-wpm').textContent;
+  const acc = document.getElementById('res-acc').textContent;
+  const shareText = `⌨️ I type ${wpm} WPM with ${acc} accuracy!\n\nTest your speed → https://autonomous-arcade.optimous.ai/games/type-racer/`;
+  
+  if (navigator.share) {
+    navigator.share({ title: 'Type Racer — My Typing Speed', text: shareText }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(shareText).then(() => {
+      const btn = document.getElementById('share-btn');
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = 'Share Score'; }, 2000);
+    });
+  }
+});
+
+// Keyboard shortcut: Enter to start/retry
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && gameState === 'idle') startGame();
+  if (e.key === 'Enter' && gameState === 'done') {
+    results.style.display = 'none';
+    startGame();
+  }
+});
+</script>
+
+</body>
+</html>
