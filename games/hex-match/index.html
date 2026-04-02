@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Hex Match — Color Memory Speed Game | Pulse Run</title>
+<meta name="description" content="Match hex colors before time runs out! Fast-paced color memory game. No download needed — play free in your browser.">
+<meta property="og:title" content="Hex Match — Color Memory Speed Game">
+<meta property="og:description" content="Match hex colors before time runs out! Free browser game.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://pulse-run.vercel.app/games/hex-match/">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #050510; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
+body {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: #fff;
+  user-select: none;
+}
+
+.back-link {
+  position: fixed; top: 16px; left: 16px; z-index: 100;
+  color: #445; text-decoration: none; font-size: 13px; letter-spacing: 1px;
+  transition: color 0.2s;
+}
+.back-link:hover { color: #00f0ff; }
+
+/* Screens */
+.screen { display: none; flex-direction: column; align-items: center; gap: 16px; text-align: center; }
+.screen.active { display: flex; }
+
+h1 { font-size: 42px; font-weight: 900; letter-spacing: 4px; }
+h1 .hex { color: #00ff88; text-shadow: 0 0 30px rgba(0,255,136,0.5); }
+h1 .match { color: #ff6600; text-shadow: 0 0 30px rgba(255,102,0,0.5); }
+.subtitle { color: #556; font-size: 13px; letter-spacing: 3px; text-transform: uppercase; }
+.prompt { color: #889; font-size: 16px; animation: blink 1.2s ease-in-out infinite; cursor: pointer; margin-top: 16px; }
+@keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+/* Game Area */
+#game-area {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+  max-width: 420px;
+  padding: 0 24px;
+}
+#game-area.active { display: flex; }
+
+/* HUD */
+.hud {
+  display: flex; justify-content: space-between; width: 100%; align-items: center;
+}
+.hud-item { text-align: center; }
+.hud-label { font-size: 10px; color: #445; letter-spacing: 2px; text-transform: uppercase; }
+.hud-value { font-size: 24px; font-weight: 900; color: #00f0ff; }
+.hud-value.score { color: #00ff88; }
+.hud-value.combo { color: #ff6600; }
+
+/* Timer bar */
+.timer-bar-container {
+  width: 100%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden;
+}
+.timer-bar {
+  height: 100%; background: linear-gradient(90deg, #00ff88, #00f0ff); border-radius: 3px;
+  transition: width 0.1s linear;
+}
+.timer-bar.danger { background: linear-gradient(90deg, #ff3366, #ff6600); }
+
+/* Target color display */
+.target-area {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.target-label { font-size: 11px; color: #445; letter-spacing: 2px; text-transform: uppercase; }
+.target-color {
+  width: 100px; height: 100px; border-radius: 20px;
+  border: 3px solid rgba(255,255,255,0.1);
+  box-shadow: 0 0 30px rgba(0,0,0,0.5);
+  transition: all 0.3s ease;
+}
+.target-hex {
+  font-size: 16px; font-weight: 700; color: #aab; letter-spacing: 2px;
+  font-family: 'Courier New', monospace;
+}
+
+/* Color grid */
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+.color-option {
+  aspect-ratio: 1;
+  border-radius: 16px;
+  border: 2px solid rgba(255,255,255,0.08);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+}
+.color-option:hover {
+  transform: scale(1.05);
+  border-color: rgba(255,255,255,0.2);
+}
+.color-option:active {
+  transform: scale(0.95);
+}
+.color-option.correct {
+  border-color: #00ff88 !important;
+  box-shadow: 0 0 20px rgba(0,255,136,0.4);
+}
+.color-option.wrong {
+  border-color: #ff3366 !important;
+  box-shadow: 0 0 20px rgba(255,51,102,0.4);
+}
+
+/* Result overlay */
+.result-flash {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  display: none; align-items: center; justify-content: center;
+  font-size: 72px; font-weight: 900;
+  pointer-events: none; z-index: 50;
+  animation: flashIn 0.4s ease-out;
+}
+@keyframes flashIn { 0% { transform: scale(2); opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
+
+/* Death screen extras */
+.final-score { font-size: 64px; font-weight: 900; color: #00ff88; text-shadow: 0 0 40px rgba(0,255,136,0.4); }
+.high-score-text { font-size: 18px; color: #ff6600; }
+.stats-row { display: flex; gap: 32px; }
+.stat-item { text-align: center; }
+.stat-num { font-size: 24px; font-weight: 800; color: #00f0ff; }
+.stat-lbl { font-size: 10px; color: #445; letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
+
+/* Share button */
+.share-btn {
+  background: linear-gradient(135deg, #00ff88, #00ccaa);
+  color: #000; border: none; padding: 12px 28px; border-radius: 30px;
+  font-size: 14px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+  cursor: pointer; transition: all 0.2s;
+}
+.share-btn:hover { transform: scale(1.05); box-shadow: 0 4px 20px rgba(0,255,136,0.3); }
+
+/* Ad slot */
+.ad-slot-game {
+  position: fixed; bottom: 0; left: 0; width: 100%; height: 60px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.8); z-index: 90;
+  color: #222; font-size: 10px; letter-spacing: 2px;
+}
+
+@media (max-width: 400px) {
+  h1 { font-size: 32px; }
+  .target-color { width: 80px; height: 80px; }
+  .color-grid { gap: 8px; }
+}
+</style>
+</head>
+<body>
+
+<a href="/" class="back-link">← All Games</a>
+
+<!-- Start Screen -->
+<div id="start-screen" class="screen active">
+  <h1><span class="hex">HEX</span> <span class="match">MATCH</span></h1>
+  <div class="subtitle">Match the color. Beat the clock.</div>
+  <div class="prompt" id="start-btn">TAP TO START</div>
+  <div style="color:#334; font-size:12px; margin-top:8px;">How to play: Find the matching hex color in the grid</div>
+</div>
+
+<!-- Game Area -->
+<div id="game-area">
+  <div class="hud">
+    <div class="hud-item">
+      <div class="hud-label">Score</div>
+      <div class="hud-value score" id="hud-score">0</div>
+    </div>
+    <div class="hud-item">
+      <div class="hud-label">Round</div>
+      <div class="hud-value" id="hud-round">1</div>
+    </div>
+    <div class="hud-item">
+      <div class="hud-label">Combo</div>
+      <div class="hud-value combo" id="hud-combo">×1</div>
+    </div>
+  </div>
+
+  <div class="timer-bar-container">
+    <div class="timer-bar" id="timer-bar"></div>
+  </div>
+
+  <div class="target-area">
+    <div class="target-label">Find this color</div>
+    <div class="target-color" id="target-color"></div>
+    <div class="target-hex" id="target-hex">#000000</div>
+  </div>
+
+  <div class="color-grid" id="color-grid"></div>
+</div>
+
+<!-- Death Screen -->
+<div id="death-screen" class="screen">
+  <div class="subtitle">GAME OVER</div>
+  <div class="final-score" id="final-score">0</div>
+  <div class="high-score-text" id="high-score-text"></div>
+  <div class="stats-row">
+    <div class="stat-item">
+      <div class="stat-num" id="stat-rounds">0</div>
+      <div class="stat-lbl">Rounds</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num" id="stat-best-combo">0</div>
+      <div class="stat-lbl">Best Combo</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num" id="stat-accuracy">0%</div>
+      <div class="stat-lbl">Accuracy</div>
+    </div>
+  </div>
+  <button class="share-btn" id="share-btn">📤 Share Score</button>
+  <div class="prompt" id="retry-btn">TAP TO RETRY</div>
+  <!-- AD_SLOT: interstitial -->
+</div>
+
+<div class="result-flash" id="result-flash"></div>
+<div class="ad-slot-game" id="ad-bottom"><!-- AD_SLOT: banner_320x50 --></div>
+
+<script>
+// ============================================================
+// HEX MATCH — Color Memory Speed Game
+// ============================================================
+
+const CONFIG = {
+  BASE_TIME: 5000,        // ms per round at start
+  MIN_TIME: 1500,         // fastest round time
+  TIME_DECREASE: 150,     // ms less per round
+  GRID_SIZE: 6,           // number of color options (starts at 4, grows)
+  MAX_GRID: 9,            // max color options
+  COLOR_SIMILARITY_START: 80,  // HSL distance (easy)
+  COLOR_SIMILARITY_MIN: 20,    // HSL distance (hard)
+  SIMILARITY_DECREASE: 3,
+  POINTS_BASE: 100,
+  TIME_BONUS_MULT: 2,     // points per ms remaining
+  COMBO_MULT: 0.5,        // extra multiplier per combo
+  WRONG_PENALTY_MS: 800,  // time penalty for wrong answer
+};
+
+let state = 'start';
+let score = 0;
+let round = 0;
+let combo = 0;
+let bestCombo = 0;
+let correctPicks = 0;
+let totalPicks = 0;
+let highScore = parseInt(localStorage.getItem('hexmatch_high') || '0');
+let roundTimer = 0;
+let roundDuration = 0;
+let timerInterval = null;
+let targetColor = null;
+let gridColors = [];
+let correctIndex = -1;
+
+// DOM
+const startScreen = document.getElementById('start-screen');
+const gameArea = document.getElementById('game-area');
+const deathScreen = document.getElementById('death-screen');
+const timerBar = document.getElementById('timer-bar');
+const colorGrid = document.getElementById('color-grid');
+const resultFlash = document.getElementById('result-flash');
+
+// ============================================================
+// COLOR GENERATION
+// ============================================================
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+function hexToHsl(hex) {
+  let r = parseInt(hex.slice(1,3), 16) / 255;
+  let g = parseInt(hex.slice(3,5), 16) / 255;
+  let b = parseInt(hex.slice(5,7), 16) / 255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b);
+  let h, s, l = (max + min) / 2;
+  if (max === min) { h = s = 0; }
+  else {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch(max) {
+      case r: h = ((g-b)/d + (g<b?6:0)) * 60; break;
+      case g: h = ((b-r)/d + 2) * 60; break;
+      case b: h = ((r-g)/d + 4) * 60; break;
+    }
+  }
+  return [h, s*100, l*100];
+}
+
+function generateRound() {
+  // Determine difficulty
+  const gridSize = Math.min(CONFIG.MAX_GRID, 4 + Math.floor(round / 3));
+  const similarity = Math.max(CONFIG.COLOR_SIMILARITY_MIN, CONFIG.COLOR_SIMILARITY_START - round * CONFIG.SIMILARITY_DECREASE);
+  
+  // Generate target color (avoid too dark or too light)
+  const targetH = Math.random() * 360;
+  const targetS = 40 + Math.random() * 50; // 40-90
+  const targetL = 30 + Math.random() * 35; // 30-65
+  targetColor = hslToHex(targetH, targetS, targetL);
+  
+  // Generate distractors
+  gridColors = [];
+  correctIndex = Math.floor(Math.random() * gridSize);
+  
+  for (let i = 0; i < gridSize; i++) {
+    if (i === correctIndex) {
+      gridColors.push(targetColor);
+    } else {
+      // Generate a color that's "similarity" distance away in HSL
+      let dH = (Math.random() - 0.5) * similarity * 2;
+      let dS = (Math.random() - 0.5) * similarity * 0.8;
+      let dL = (Math.random() - 0.5) * similarity * 0.6;
+      // Ensure minimum distance
+      if (Math.abs(dH) + Math.abs(dS) + Math.abs(dL) < similarity * 0.5) {
+        dH += (dH > 0 ? 1 : -1) * similarity * 0.5;
+      }
+      const h = (targetH + dH + 360) % 360;
+      const s = Math.max(10, Math.min(100, targetS + dS));
+      const l = Math.max(15, Math.min(80, targetL + dL));
+      gridColors.push(hslToHex(h, s, l));
+    }
+  }
+  
+  // Render
+  document.getElementById('target-color').style.background = targetColor;
+  document.getElementById('target-hex').textContent = targetColor.toUpperCase();
+  
+  colorGrid.innerHTML = '';
+  const cols = gridSize <= 4 ? 2 : 3;
+  colorGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  
+  gridColors.forEach((color, idx) => {
+    const div = document.createElement('div');
+    div.className = 'color-option';
+    div.style.background = color;
+    div.addEventListener('click', () => pick(idx));
+    div.addEventListener('touchend', (e) => { e.preventDefault(); pick(idx); });
+    colorGrid.appendChild(div);
+  });
+  
+  // Timer
+  roundDuration = Math.max(CONFIG.MIN_TIME, CONFIG.BASE_TIME - round * CONFIG.TIME_DECREASE);
+  roundTimer = roundDuration;
+  timerBar.style.width = '100%';
+  timerBar.classList.remove('danger');
+  
+  clearInterval(timerInterval);
+  const tick = 50;
+  timerInterval = setInterval(() => {
+    roundTimer -= tick;
+    const pct = Math.max(0, roundTimer / roundDuration * 100);
+    timerBar.style.width = pct + '%';
+    if (pct < 30) timerBar.classList.add('danger');
+    if (roundTimer <= 0) {
+      clearInterval(timerInterval);
+      gameOver();
+    }
+  }, tick);
+}
+
+// ============================================================
+// PICK
+// ============================================================
+function pick(idx) {
+  if (state !== 'playing') return;
+  totalPicks++;
+  
+  const options = colorGrid.children;
+  
+  if (idx === correctIndex) {
+    // Correct!
+    correctPicks++;
+    combo++;
+    if (combo > bestCombo) bestCombo = combo;
+    
+    const timeBonus = Math.floor(roundTimer * CONFIG.TIME_BONUS_MULT / 100);
+    const comboMult = 1 + combo * CONFIG.COMBO_MULT;
+    const points = Math.floor((CONFIG.POINTS_BASE + timeBonus) * comboMult);
+    score += points;
+    
+    options[idx].classList.add('correct');
+    showFlash('✓', '#00ff88');
+    
+    document.getElementById('hud-score').textContent = score;
+    document.getElementById('hud-combo').textContent = combo > 1 ? `×${combo}` : '×1';
+    
+    setTimeout(() => {
+      round++;
+      document.getElementById('hud-round').textContent = round + 1;
+      generateRound();
+    }, 300);
+  } else {
+    // Wrong
+    combo = 0;
+    document.getElementById('hud-combo').textContent = '×1';
+    options[idx].classList.add('wrong');
+    showFlash('✗', '#ff3366');
+    
+    // Time penalty
+    roundTimer -= CONFIG.WRONG_PENALTY_MS;
+    if (roundTimer <= 0) {
+      clearInterval(timerInterval);
+      gameOver();
+    }
+    
+    setTimeout(() => {
+      if (options[idx]) options[idx].classList.remove('wrong');
+    }, 300);
+  }
+}
+
+function showFlash(text, color) {
+  resultFlash.textContent = text;
+  resultFlash.style.color = color;
+  resultFlash.style.display = 'flex';
+  resultFlash.style.animation = 'none';
+  resultFlash.offsetHeight; // force reflow
+  resultFlash.style.animation = 'flashIn 0.4s ease-out forwards';
+  setTimeout(() => { resultFlash.style.display = 'none'; }, 400);
+}
+
+// ============================================================
+// STATE MANAGEMENT
+// ============================================================
+function startGame() {
+  state = 'playing';
+  score = 0; round = 0; combo = 0; bestCombo = 0; correctPicks = 0; totalPicks = 0;
+  
+  startScreen.classList.remove('active');
+  deathScreen.classList.remove('active');
+  gameArea.classList.add('active');
+  
+  document.getElementById('hud-score').textContent = '0';
+  document.getElementById('hud-round').textContent = '1';
+  document.getElementById('hud-combo').textContent = '×1';
+  
+  generateRound();
+}
+
+function gameOver() {
+  state = 'dead';
+  clearInterval(timerInterval);
+  
+  if (score > highScore) {
+    highScore = score;
+    localStorage.setItem('hexmatch_high', highScore.toString());
+  }
+  
+  gameArea.classList.remove('active');
+  deathScreen.classList.add('active');
+  
+  document.getElementById('final-score').textContent = score;
+  document.getElementById('high-score-text').textContent = 'BEST: ' + highScore;
+  document.getElementById('stat-rounds').textContent = round;
+  document.getElementById('stat-best-combo').textContent = '×' + bestCombo;
+  document.getElementById('stat-accuracy').textContent = totalPicks > 0 ? Math.round(correctPicks / totalPicks * 100) + '%' : '0%';
+  
+  console.log('[Analytics]', { event: 'game_over', game: 'hex-match', score, rounds: round, bestCombo, accuracy: totalPicks > 0 ? correctPicks/totalPicks : 0 });
+}
+
+// ============================================================
+// SHARE
+// ============================================================
+document.getElementById('share-btn').addEventListener('click', () => {
+  const text = `🧠 Hex Match — I scored ${score} points in ${round} rounds!\n\nBest combo: ×${bestCombo} | Accuracy: ${totalPicks > 0 ? Math.round(correctPicks/totalPicks*100) : 0}%\n\nCan you beat me? 👇\nhttps://pulse-run.vercel.app/games/hex-match/`;
+  
+  if (navigator.share) {
+    navigator.share({ title: 'Hex Match Score', text }).catch(() => {});
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('share-btn');
+      btn.textContent = '✓ Copied!';
+      setTimeout(() => { btn.textContent = '📤 Share Score'; }, 2000);
+    });
+  }
+});
+
+// ============================================================
+// INPUT
+// ============================================================
+document.getElementById('start-btn').addEventListener('click', startGame);
+document.getElementById('start-btn').addEventListener('touchend', (e) => { e.preventDefault(); startGame(); });
+document.getElementById('retry-btn').addEventListener('click', startGame);
+document.getElementById('retry-btn').addEventListener('touchend', (e) => { e.preventDefault(); startGame(); });
+
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' || e.code === 'Enter') {
+    if (state === 'start' || state === 'dead') startGame();
+  }
+});
+
+// ============================================================
+// ANALYTICS
+// ============================================================
+console.log('[Analytics]', { event: 'page_load', game: 'hex-match', ts: Date.now() });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Pulse Run — Neon Endless Runner | Free Browser Game</title>
+<meta name="description" content="Ride the beat, dodge the drop. Neon 3D endless runner with rhythm-reactive obstacles. Free, no download.">
+<meta property="og:title" content="Pulse Run — Neon Endless Runner">
+<meta property="og:description" content="Ride the beat, dodge the drop. Free 3D endless runner in your browser.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://pulse-run.vercel.app/games/pulse-run/">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #050510; touch-action: none; -webkit-tap-highlight-color: transparent; }
+canvas { display: block; }
+
+#ui-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 10;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+#ui-overlay.active { pointer-events: all; }
+.screen { display: none; text-align: center; color: #fff; }
+.screen.visible { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+
+h1 { font-size: 52px; font-weight: 900; letter-spacing: 6px; text-transform: uppercase; text-shadow: 0 0 40px rgba(0,240,255,0.6); }
+h1 .pulse { color: #00f0ff; }
+h1 .run { color: #ff00aa; }
+.subtitle { color: #667; font-size: 14px; letter-spacing: 3px; text-transform: uppercase; }
+.score-display { font-size: 80px; font-weight: 900; color: #00f0ff; text-shadow: 0 0 40px rgba(0,240,255,0.5); }
+.high-score { font-size: 20px; color: #ff00aa; text-shadow: 0 0 10px rgba(255,0,170,0.5); }
+.prompt { font-size: 18px; color: #aab; animation: blink 1.2s ease-in-out infinite; margin-top: 24px; }
+.death-count { font-size: 13px; color: #445; margin-top: 8px; }
+.controls-hint { font-size: 12px; color: #334; margin-top: 16px; line-height: 1.8; }
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+#hud {
+  position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 20;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  text-align: center;
+}
+#score-hud { color: #00f0ff; font-size: 36px; font-weight: 900; text-shadow: 0 0 20px rgba(0,240,255,0.4); }
+#multiplier-hud { font-size: 14px; color: #ff00aa; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<a href="/" style="position:fixed;top:16px;left:16px;z-index:100;color:#445;text-decoration:none;font-family:system-ui;font-size:13px;letter-spacing:1px;">← All Games</a>
+
+<div id="hud" style="display:none;">
+  <div id="score-hud">0</div>
+  <div id="multiplier-hud"></div>
+</div>
+
+<div id="ui-overlay" class="active">
+  <div id="start-screen" class="screen visible">
+    <h1><span class="pulse">PULSE</span> <span class="run">RUN</span></h1>
+    <div class="subtitle">Ride the beat. Dodge the drop.</div>
+    <div class="prompt">TAP TO START</div>
+    <div class="controls-hint">
+      ← → or SWIPE to change lanes<br>
+      SPACE or TAP to jump
+    </div>
+  </div>
+
+  <div id="death-screen" class="screen">
+    <div class="score-display" id="final-score">0</div>
+    <div class="subtitle">DISTANCE</div>
+    <div class="high-score" id="high-score-display"></div>
+    <div class="prompt" id="death-prompt">TAP TO RETRY</div>
+    <div class="death-count" id="death-count"></div>
+    <button onclick="shareScore()" style="margin-top:12px;background:linear-gradient(135deg,#00f0ff,#0088ff);color:#000;border:none;padding:10px 24px;border-radius:24px;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;cursor:pointer;">📤 Share Score</button>
+    <!-- AD_SLOT: interstitial -->
+  </div>
+
+  <div id="continue-screen" class="screen">
+    <div class="score-display" id="continue-score">0</div>
+    <div class="subtitle">CONTINUE?</div>
+    <div class="prompt">WATCH AD TO CONTINUE</div>
+    <!-- AD_SLOT: rewarded_video -->
+    <div class="death-count" style="margin-top:12px;">TAP TO SKIP</div>
+  </div>
+</div>
+
+<!-- Three.js + Cannon-es from CDN -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.171.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.171.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+// ============================================================
+// CONFIG — AI-tunable parameters
+// ============================================================
+const CONFIG = {
+  // Movement
+  BASE_SPEED: 0.4,
+  SPEED_INCREMENT: 0.00002,
+  MAX_SPEED: 1.2,
+  JUMP_FORCE: 0.28,
+  GRAVITY: 0.012,
+  
+  // Lanes
+  LANE_WIDTH: 2.5,
+  LANE_SWITCH_SPEED: 0.15,
+  LANES: [-2.5, 0, 2.5],
+  
+  // Obstacles
+  OBSTACLE_SPAWN_DISTANCE: 30,
+  OBSTACLE_MIN_GAP: 15,
+  SPAWN_AHEAD: 120,
+  DESPAWN_BEHIND: -20,
+  
+  // Difficulty
+  DIFFICULTY_RAMP_RATE: 0.00008,
+  DIFFICULTY_MAX: 5,
+  
+  // Rhythm
+  BPM: 140,
+  
+  // Physics puzzles
+  BARREL_ROLL_SPEED: 0.05,
+  PENDULUM_SPEED: 2.0,
+  PENDULUM_AMPLITUDE: 2.5,
+  
+  // Continue prompt
+  DEATHS_BEFORE_AD: 4,
+  
+  // Visual
+  FOG_NEAR: 30,
+  FOG_FAR: 100,
+  TRACK_SEGMENT_LENGTH: 10,
+  TRACK_SEGMENTS: 20,
+};
+
+// ============================================================
+// ANALYTICS STUB
+// ============================================================
+const Analytics = {
+  sessionStart: Date.now(), deaths: 0,
+  log(e, d = {}) { console.log('[Analytics]', { event: e, ...d, t: Date.now() - this.sessionStart }); },
+  init() { this.sessionStart = Date.now(); this.log('session_start'); },
+  death(score, diff) { this.deaths++; this.log('death', { score: Math.floor(score), difficulty: diff.toFixed(2), deathNum: this.deaths }); },
+  restart() { this.log('restart'); },
+};
+
+// ============================================================
+// AUDIO ENGINE
+// ============================================================
+class AudioEngine {
+  constructor() {
+    this.ctx = null;
+    this.beatInterval = 60 / CONFIG.BPM;
+    this.lastBeat = 0;
+    this.onBeat = false;
+    this.beatPhase = 0;
+    this.initialized = false;
+  }
+  init() {
+    if (this.initialized) return;
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    this.initialized = true;
+  }
+  playNote(freq, type, vol, dur, rampTo) {
+    if (!this.ctx) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.connect(gain); gain.connect(this.ctx.destination);
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+    if (rampTo) osc.frequency.exponentialRampToValueAtTime(rampTo, this.ctx.currentTime + dur);
+    gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
+    osc.start(); osc.stop(this.ctx.currentTime + dur + 0.01);
+  }
+  playJump() { this.playNote(350, 'sine', 0.12, 0.15, 700); }
+  playDeath() { this.playNote(250, 'sawtooth', 0.18, 0.5, 40); }
+  playLaneSwitch() { this.playNote(600, 'sine', 0.06, 0.08, 800); }
+  playBeat() {
+    if (!this.ctx) return;
+    const isKick = this.beatPhase % 4 === 0;
+    const isSnare = this.beatPhase % 4 === 2;
+    if (isKick) {
+      this.playNote(55, 'sine', 0.12, 0.15, 30);
+    }
+    if (isSnare) {
+      const noise = this.ctx.createBufferSource();
+      const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.08, this.ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * 0.08;
+      noise.buffer = buf;
+      const g = this.ctx.createGain(); noise.connect(g); g.connect(this.ctx.destination);
+      g.gain.setValueAtTime(0.08, this.ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.08);
+      noise.start();
+    }
+    if (this.beatPhase % 2 === 1) {
+      this.playNote(8000, 'square', 0.02, 0.03);
+    }
+  }
+  update(time) {
+    this.onBeat = false;
+    if (time - this.lastBeat >= this.beatInterval) {
+      this.onBeat = true;
+      this.lastBeat = time - ((time - this.lastBeat) % this.beatInterval);
+      this.beatPhase++;
+      this.playBeat();
+    }
+  }
+}
+
+// ============================================================
+// GAME SETUP
+// ============================================================
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.8;
+document.body.insertBefore(renderer.domElement, document.body.firstChild);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x050510);
+scene.fog = new THREE.Fog(0x050510, CONFIG.FOG_NEAR, CONFIG.FOG_FAR);
+
+const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.position.set(0, 4, -6);
+camera.lookAt(0, 1.5, 10);
+
+// Lighting
+const ambientLight = new THREE.AmbientLight(0x111133, 0.5);
+scene.add(ambientLight);
+
+const dirLight = new THREE.DirectionalLight(0x4444ff, 0.4);
+dirLight.position.set(-5, 15, 10);
+scene.add(dirLight);
+
+// Point lights for neon glow
+const cyanLight = new THREE.PointLight(0x00f0ff, 2, 25);
+cyanLight.position.set(0, 3, 5);
+scene.add(cyanLight);
+
+const magentaLight = new THREE.PointLight(0xff00aa, 1.5, 20);
+magentaLight.position.set(0, 5, 15);
+scene.add(magentaLight);
+
+// ============================================================
+// MATERIALS
+// ============================================================
+const playerMat = new THREE.MeshStandardMaterial({
+  color: 0x00f0ff,
+  emissive: 0x00f0ff,
+  emissiveIntensity: 0.8,
+  metalness: 0.8,
+  roughness: 0.2,
+});
+
+const trackMat = new THREE.MeshStandardMaterial({
+  color: 0x0a0a1a,
+  metalness: 0.9,
+  roughness: 0.3,
+});
+
+const laneMat = new THREE.MeshBasicMaterial({
+  color: 0x00f0ff,
+  transparent: true,
+  opacity: 0.15,
+});
+
+const obstacleMats = {
+  block: new THREE.MeshStandardMaterial({ color: 0xff00aa, emissive: 0xff00aa, emissiveIntensity: 0.5, metalness: 0.6, roughness: 0.3 }),
+  barrel: new THREE.MeshStandardMaterial({ color: 0xff3366, emissive: 0xff3366, emissiveIntensity: 0.4, metalness: 0.7, roughness: 0.3 }),
+  pendulum: new THREE.MeshStandardMaterial({ color: 0xaa00ff, emissive: 0xaa00ff, emissiveIntensity: 0.5, metalness: 0.6, roughness: 0.3 }),
+  ramp: new THREE.MeshStandardMaterial({ color: 0x00ff88, emissive: 0x00ff88, emissiveIntensity: 0.4, metalness: 0.5, roughness: 0.4 }),
+  wall: new THREE.MeshStandardMaterial({ color: 0xff6600, emissive: 0xff6600, emissiveIntensity: 0.4, metalness: 0.5, roughness: 0.4 }),
+};
+
+const gridMat = new THREE.MeshBasicMaterial({
+  color: 0x00f0ff,
+  transparent: true,
+  opacity: 0.08,
+  wireframe: true,
+});
+
+// ============================================================
+// TRACK
+// ============================================================
+const trackGroup = new THREE.Group();
+scene.add(trackGroup);
+
+// Main track floor
+const trackGeo = new THREE.BoxGeometry(CONFIG.LANE_WIDTH * 3 + 1, 0.15, CONFIG.TRACK_SEGMENT_LENGTH * CONFIG.TRACK_SEGMENTS);
+const track = new THREE.Mesh(trackGeo, trackMat);
+track.position.set(0, -0.075, CONFIG.TRACK_SEGMENT_LENGTH * CONFIG.TRACK_SEGMENTS / 2 - 10);
+track.receiveShadow = true;
+trackGroup.add(track);
+
+// Lane dividers
+for (let lx of [-CONFIG.LANE_WIDTH / 2 - 0.6, CONFIG.LANE_WIDTH / 2 + 0.6]) {
+  const laneGeo = new THREE.BoxGeometry(0.05, 0.02, CONFIG.TRACK_SEGMENT_LENGTH * CONFIG.TRACK_SEGMENTS);
+  const lane = new THREE.Mesh(laneGeo, laneMat);
+  lane.position.set(lx, 0.01, CONFIG.TRACK_SEGMENT_LENGTH * CONFIG.TRACK_SEGMENTS / 2 - 10);
+  trackGroup.add(lane);
+}
+
+// Edge rails (glowing)
+const edgeGlowMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.4 });
+for (let side of [-1, 1]) {
+  const edgeGeo = new THREE.BoxGeometry(0.08, 0.3, CONFIG.TRACK_SEGMENT_LENGTH * CONFIG.TRACK_SEGMENTS);
+  const edge = new THREE.Mesh(edgeGeo, edgeGlowMat);
+  edge.position.set(side * (CONFIG.LANE_WIDTH * 1.5 + 0.8), 0.15, CONFIG.TRACK_SEGMENT_LENGTH * CONFIG.TRACK_SEGMENTS / 2 - 10);
+  trackGroup.add(edge);
+}
+
+// Grid floor beneath track
+const gridGeo = new THREE.PlaneGeometry(60, 200, 30, 100);
+const grid = new THREE.Mesh(gridGeo, gridMat);
+grid.rotation.x = -Math.PI / 2;
+grid.position.set(0, -0.1, 80);
+scene.add(grid);
+
+// ============================================================
+// PLAYER
+// ============================================================
+const playerGeo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+const playerMesh = new THREE.Mesh(playerGeo, playerMat);
+playerMesh.castShadow = true;
+playerMesh.position.set(0, 0.5, 0);
+scene.add(playerMesh);
+
+// Player glow sprite
+const glowTexture = createGlowTexture();
+const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: glowTexture, color: 0x00f0ff, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending,
+}));
+glowSprite.scale.set(3, 3, 1);
+playerMesh.add(glowSprite);
+
+function createGlowTexture() {
+  const size = 128;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const cx = c.getContext('2d');
+  const grad = cx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.3, 'rgba(255,255,255,0.3)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  cx.fillStyle = grad;
+  cx.fillRect(0, 0, size, size);
+  return new THREE.CanvasTexture(c);
+}
+
+// ============================================================
+// PARTICLE SYSTEM (simple point-based)
+// ============================================================
+const MAX_PARTICLES = 500;
+const particlePositions = new Float32Array(MAX_PARTICLES * 3);
+const particleColors = new Float32Array(MAX_PARTICLES * 3);
+const particleAlphas = new Float32Array(MAX_PARTICLES);
+const particleVelocities = [];
+const particleLives = new Float32Array(MAX_PARTICLES);
+let particleCount = 0;
+
+const particleGeo = new THREE.BufferGeometry();
+particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+particleGeo.setAttribute('color', new THREE.BufferAttribute(particleColors, 3));
+const particleMat = new THREE.PointsMaterial({
+  size: 0.15, vertexColors: true, transparent: true, opacity: 0.8,
+  blending: THREE.AdditiveBlending, depthWrite: false,
+});
+const particleSystem = new THREE.Points(particleGeo, particleMat);
+scene.add(particleSystem);
+
+function spawnParticle(x, y, z, vx, vy, vz, r, g, b, life) {
+  if (particleCount >= MAX_PARTICLES) return;
+  const i = particleCount;
+  particlePositions[i*3] = x; particlePositions[i*3+1] = y; particlePositions[i*3+2] = z;
+  particleColors[i*3] = r; particleColors[i*3+1] = g; particleColors[i*3+2] = b;
+  particleVelocities[i] = { x: vx, y: vy, z: vz };
+  particleLives[i] = life;
+  particleAlphas[i] = 1;
+  particleCount++;
+}
+
+function updateParticles(dt) {
+  for (let i = particleCount - 1; i >= 0; i--) {
+    particleLives[i] -= dt;
+    if (particleLives[i] <= 0) {
+      // Swap with last
+      const last = particleCount - 1;
+      if (i !== last) {
+        particlePositions[i*3] = particlePositions[last*3];
+        particlePositions[i*3+1] = particlePositions[last*3+1];
+        particlePositions[i*3+2] = particlePositions[last*3+2];
+        particleColors[i*3] = particleColors[last*3];
+        particleColors[i*3+1] = particleColors[last*3+1];
+        particleColors[i*3+2] = particleColors[last*3+2];
+        particleVelocities[i] = particleVelocities[last];
+        particleLives[i] = particleLives[last];
+      }
+      particleCount--;
+      continue;
+    }
+    const v = particleVelocities[i];
+    particlePositions[i*3] += v.x * dt;
+    particlePositions[i*3+1] += v.y * dt;
+    particlePositions[i*3+2] += v.z * dt;
+    v.y -= 5 * dt; // gravity
+  }
+  particleGeo.attributes.position.needsUpdate = true;
+  particleGeo.attributes.color.needsUpdate = true;
+  particleGeo.setDrawRange(0, particleCount);
+}
+
+function spawnTrailParticle(x, y, z) {
+  spawnParticle(
+    x + (Math.random()-0.5)*0.3, y + (Math.random()-0.5)*0.3, z - 0.5,
+    (Math.random()-0.5)*0.5, Math.random()*1, -Math.random()*2 - 1,
+    0, 0.9, 1, 0.3 + Math.random()*0.2
+  );
+}
+
+function spawnDeathParticles(x, y, z) {
+  for (let i = 0; i < 50; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const elev = (Math.random() - 0.3) * Math.PI;
+    const spd = Math.random() * 8 + 3;
+    const isCyan = Math.random() > 0.5;
+    spawnParticle(x, y, z,
+      Math.cos(angle) * Math.cos(elev) * spd,
+      Math.sin(elev) * spd + 3,
+      Math.sin(angle) * Math.cos(elev) * spd,
+      isCyan ? 0 : 1, isCyan ? 0.94 : 0, isCyan ? 1 : 0.67,
+      0.5 + Math.random() * 0.5
+    );
+  }
+}
+
+// ============================================================
+// OBSTACLES
+// ============================================================
+let obstacles = [];
+let lastSpawnZ = 20;
+let gameZ = 0; // how far the player has "traveled"
+
+const obstacleGeometries = {
+  block: new THREE.BoxGeometry(1.8, 1.5, 1),
+  tallBlock: new THREE.BoxGeometry(1.2, 3, 0.8),
+  barrel: new THREE.CylinderGeometry(0.6, 0.6, 1.8, 12),
+  pendulumArm: new THREE.BoxGeometry(0.1, 3, 0.1),
+  pendulumBall: new THREE.SphereGeometry(0.6, 16, 12),
+  ramp: new THREE.BoxGeometry(2.2, 0.4, 3),
+  wallSegment: new THREE.BoxGeometry(2.2, 2.5, 0.4),
+};
+
+function spawnObstacle() {
+  const z = lastSpawnZ + CONFIG.OBSTACLE_MIN_GAP + Math.random() * 15;
+  
+  const types = ['block', 'tallBlock', 'barrel'];
+  if (difficulty > 1.5) types.push('pendulum', 'ramp');
+  if (difficulty > 2.5) types.push('wallGap');
+  if (difficulty > 3) types.push('multiLane');
+  
+  const type = types[Math.floor(Math.random() * types.length)];
+  const laneIdx = Math.floor(Math.random() * 3);
+  const laneX = CONFIG.LANES[laneIdx];
+  
+  switch(type) {
+    case 'block': {
+      const mesh = new THREE.Mesh(obstacleGeometries.block, obstacleMats.block);
+      mesh.position.set(laneX, 0.75, z);
+      mesh.castShadow = true;
+      scene.add(mesh);
+      obstacles.push({ mesh, type, z, lane: laneIdx, hitbox: { hw: 0.9, hh: 0.75, hd: 0.5 } });
+      break;
+    }
+    case 'tallBlock': {
+      const mesh = new THREE.Mesh(obstacleGeometries.tallBlock, obstacleMats.block);
+      mesh.position.set(laneX, 1.5, z);
+      mesh.castShadow = true;
+      scene.add(mesh);
+      obstacles.push({ mesh, type, z, lane: laneIdx, hitbox: { hw: 0.6, hh: 1.5, hd: 0.4 } });
+      break;
+    }
+    case 'barrel': {
+      const mesh = new THREE.Mesh(obstacleGeometries.barrel, obstacleMats.barrel);
+      mesh.rotation.z = Math.PI / 2;
+      mesh.position.set(laneX, 0.6, z);
+      mesh.castShadow = true;
+      scene.add(mesh);
+      obstacles.push({ mesh, type, z, lane: laneIdx, rollDir: Math.random() > 0.5 ? 1 : -1, hitbox: { hw: 0.9, hh: 0.6, hd: 0.6 } });
+      break;
+    }
+    case 'pendulum': {
+      const group = new THREE.Group();
+      group.position.set(laneX, 5, z);
+      const arm = new THREE.Mesh(obstacleGeometries.pendulumArm, obstacleMats.pendulum);
+      arm.position.y = -1.5;
+      group.add(arm);
+      const ball = new THREE.Mesh(obstacleGeometries.pendulumBall, obstacleMats.pendulum);
+      ball.position.y = -3.2;
+      ball.castShadow = true;
+      group.add(ball);
+      scene.add(group);
+      obstacles.push({ mesh: group, type, z, lane: laneIdx, phase: Math.random() * Math.PI * 2, hitbox: { hw: 0.6, hh: 0.6, hd: 0.6 }, ball });
+      break;
+    }
+    case 'ramp': {
+      const mesh = new THREE.Mesh(obstacleGeometries.ramp, obstacleMats.ramp);
+      mesh.position.set(laneX, 0.2, z);
+      mesh.rotation.x = -0.15;
+      scene.add(mesh);
+      obstacles.push({ mesh, type, z, lane: laneIdx, isRamp: true, hitbox: { hw: 1.1, hh: 0.5, hd: 1.5 } });
+      break;
+    }
+    case 'wallGap': {
+      // Wall with gap in one lane
+      const gapLane = Math.floor(Math.random() * 3);
+      for (let i = 0; i < 3; i++) {
+        if (i === gapLane) continue;
+        const mesh = new THREE.Mesh(obstacleGeometries.wallSegment, obstacleMats.wall);
+        mesh.position.set(CONFIG.LANES[i], 1.25, z);
+        mesh.castShadow = true;
+        scene.add(mesh);
+        obstacles.push({ mesh, type: 'wall', z, lane: i, hitbox: { hw: 1.1, hh: 1.25, hd: 0.2 } });
+      }
+      break;
+    }
+    case 'multiLane': {
+      // Obstacles in 2 lanes, must pick the right one
+      const safeLane = Math.floor(Math.random() * 3);
+      for (let i = 0; i < 3; i++) {
+        if (i === safeLane) continue;
+        const mesh = new THREE.Mesh(obstacleGeometries.block, obstacleMats.block);
+        mesh.position.set(CONFIG.LANES[i], 0.75, z);
+        mesh.castShadow = true;
+        scene.add(mesh);
+        obstacles.push({ mesh, type: 'block', z, lane: i, hitbox: { hw: 0.9, hh: 0.75, hd: 0.5 } });
+      }
+      break;
+    }
+  }
+  
+  lastSpawnZ = z;
+}
+
+// ============================================================
+// GAME STATE
+// ============================================================
+let state = 'start';
+let score = 0;
+let highScore = parseInt(localStorage.getItem('pulserun3d_high') || '0');
+let deaths = 0;
+let difficulty = 1;
+let speed = CONFIG.BASE_SPEED;
+let currentLane = 1; // 0, 1, 2
+let targetLaneX = 0;
+let playerY = 0.5;
+let playerVY = 0;
+let isGrounded = true;
+let isOnRamp = false;
+let gameTime = 0;
+let shakeAmount = 0;
+let beatFlash = 0;
+let isDead = false;
+
+const audio = new AudioEngine();
+const clock = new THREE.Clock();
+
+// ============================================================
+// INPUT
+// ============================================================
+let touchStartX = 0;
+let touchStartY = 0;
+let swiped = false;
+
+function handleInputStart(e) {
+  e.preventDefault();
+  if (state === 'start') { audio.init(); startGame(); return; }
+  if (state === 'dead') { startGame(); return; }
+  if (state === 'continue') { showDeath(); return; }
+  
+  if (e.touches) {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    swiped = false;
+  }
+}
+
+function handleInputMove(e) {
+  if (state !== 'playing' || !e.touches) return;
+  const dx = e.touches[0].clientX - touchStartX;
+  const dy = e.touches[0].clientY - touchStartY;
+  
+  if (!swiped && Math.abs(dx) > 40) {
+    if (dx > 0 && currentLane < 2) { switchLane(1); swiped = true; }
+    else if (dx < 0 && currentLane > 0) { switchLane(-1); swiped = true; }
+  }
+  
+  if (!swiped && dy < -50 && isGrounded) {
+    jump();
+    swiped = true;
+  }
+}
+
+function handleInputEnd(e) {
+  if (state === 'playing' && !swiped && e.changedTouches) {
+    jump();
+  }
+}
+
+document.addEventListener('touchstart', handleInputStart, { passive: false });
+document.addEventListener('touchmove', handleInputMove, { passive: false });
+document.addEventListener('touchend', handleInputEnd);
+document.addEventListener('mousedown', handleInputStart);
+
+document.getElementById('ui-overlay').addEventListener('touchstart', handleInputStart, { passive: false });
+document.getElementById('ui-overlay').addEventListener('mousedown', handleInputStart);
+
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' || e.code === 'ArrowUp') {
+    e.preventDefault();
+    if (state === 'start') { audio.init(); startGame(); return; }
+    if (state === 'dead') { startGame(); return; }
+    if (state === 'continue') { showDeath(); return; }
+    if (state === 'playing') jump();
+  }
+  if (state === 'playing') {
+    if (e.code === 'ArrowLeft' && currentLane > 0) switchLane(-1);
+    if (e.code === 'ArrowRight' && currentLane < 2) switchLane(1);
+  }
+});
+
+function switchLane(dir) {
+  currentLane = Math.max(0, Math.min(2, currentLane + dir));
+  targetLaneX = CONFIG.LANES[currentLane];
+  audio.playLaneSwitch();
+}
+
+function jump() {
+  if (!isGrounded) return;
+  playerVY = CONFIG.JUMP_FORCE;
+  isGrounded = false;
+  audio.playJump();
+  
+  // Jump particles
+  for (let i = 0; i < 8; i++) {
+    spawnParticle(
+      playerMesh.position.x + (Math.random()-0.5)*0.5,
+      0.1,
+      playerMesh.position.z - 0.5 + (Math.random()-0.5)*0.5,
+      (Math.random()-0.5)*2, Math.random()*3, -Math.random()*2,
+      0, 0.94, 1, 0.3
+    );
+  }
+}
+
+// ============================================================
+// GAME STATE MANAGEMENT
+// ============================================================
+function startGame() {
+  state = 'playing';
+  score = 0;
+  difficulty = 1;
+  speed = CONFIG.BASE_SPEED;
+  currentLane = 1;
+  targetLaneX = 0;
+  playerY = 0.5;
+  playerVY = 0;
+  isGrounded = true;
+  gameZ = 0;
+  gameTime = 0;
+  shakeAmount = 0;
+  isDead = false;
+  lastSpawnZ = 20;
+  
+  // Clear obstacles
+  for (const obs of obstacles) scene.remove(obs.mesh);
+  obstacles = [];
+  particleCount = 0;
+  
+  playerMesh.visible = true;
+  playerMesh.position.set(0, 0.5, 0);
+  playerMesh.rotation.set(0, 0, 0);
+  playerMesh.scale.set(1, 1, 1);
+  
+  // Pre-spawn some obstacles
+  for (let i = 0; i < 8; i++) spawnObstacle();
+  
+  hideAllScreens();
+  document.getElementById('hud').style.display = 'block';
+  
+  clock.start();
+  audio.lastBeat = clock.getElapsedTime();
+  audio.beatPhase = 0;
+  
+  Analytics.restart();
+}
+
+function die() {
+  if (isDead) return;
+  isDead = true;
+  state = 'dead';
+  deaths++;
+  shakeAmount = 0.5;
+  audio.playDeath();
+  
+  spawnDeathParticles(playerMesh.position.x, playerMesh.position.y, playerMesh.position.z);
+  playerMesh.visible = false;
+  
+  const finalScore = Math.floor(score);
+  if (finalScore > highScore) {
+    highScore = finalScore;
+    localStorage.setItem('pulserun3d_high', highScore.toString());
+  }
+  
+  Analytics.death(score, difficulty);
+  
+  setTimeout(() => {
+    if (deaths > 0 && deaths % CONFIG.DEATHS_BEFORE_AD === 0) {
+      showContinue();
+    } else {
+      showDeath();
+    }
+  }, 800);
+}
+
+function showDeath() {
+  state = 'dead';
+  document.getElementById('final-score').textContent = Math.floor(score);
+  document.getElementById('high-score-display').textContent = 'BEST: ' + highScore;
+  document.getElementById('death-count').textContent = 'DEATHS: ' + deaths;
+  document.getElementById('hud').style.display = 'none';
+  showScreen('death-screen');
+}
+
+function showContinue() {
+  state = 'continue';
+  document.getElementById('continue-score').textContent = Math.floor(score);
+  document.getElementById('hud').style.display = 'none';
+  showScreen('continue-screen');
+  setTimeout(() => { if (state === 'continue') showDeath(); }, 5000);
+}
+
+function showScreen(id) {
+  hideAllScreens();
+  document.getElementById(id).classList.add('visible');
+  document.getElementById('ui-overlay').classList.add('active');
+}
+
+function hideAllScreens() {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('visible'));
+  document.getElementById('ui-overlay').classList.remove('active');
+}
+
+// ============================================================
+// COLLISION DETECTION
+// ============================================================
+function checkCollisions() {
+  const px = playerMesh.position.x;
+  const py = playerMesh.position.y;
+  const pz = playerMesh.position.z;
+  const pHW = 0.35, pHH = 0.35, pHD = 0.35;
+  
+  for (const obs of obstacles) {
+    if (obs.isRamp) {
+      // Ramps launch you up
+      const rz = obs.mesh.position.z - gameZ;
+      if (Math.abs(px - obs.mesh.position.x) < 1.2 &&
+          Math.abs(pz - rz) < 1.8 && py < 0.8 && isGrounded) {
+        playerVY = CONFIG.JUMP_FORCE * 1.5;
+        isGrounded = false;
+        isOnRamp = true;
+        audio.playJump();
+        continue;
+      }
+    }
+    
+    let ox, oy, oz;
+    if (obs.type === 'pendulum') {
+      // Pendulum ball position
+      const swing = Math.sin(gameTime * CONFIG.PENDULUM_SPEED + obs.phase) * CONFIG.PENDULUM_AMPLITUDE;
+      const ballWorldX = obs.mesh.position.x + swing;
+      const ballWorldZ = obs.mesh.position.z - gameZ;
+      ox = ballWorldX; oy = 1.8; oz = ballWorldZ;
+      
+      if (Math.abs(px - ox) < (pHW + obs.hitbox.hw) &&
+          Math.abs(py - oy) < (pHH + obs.hitbox.hh) &&
+          Math.abs(pz - oz) < (pHD + obs.hitbox.hd)) {
+        return true;
+      }
+      continue;
+    }
+    
+    ox = obs.mesh.position.x;
+    oy = obs.mesh.position.y;
+    oz = obs.mesh.position.z - gameZ;
+    
+    const hb = obs.hitbox;
+    if (Math.abs(px - ox) < (pHW + hb.hw) &&
+        Math.abs(py - oy) < (pHH + hb.hh) &&
+        Math.abs(pz - oz) < (pHD + hb.hd)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// ============================================================
+// MAIN LOOP
+// ============================================================
+function animate() {
+  requestAnimationFrame(animate);
+  
+  const dt = Math.min(clock.getDelta(), 0.05);
+  gameTime += dt;
+  
+  // Audio
+  if (state === 'playing') {
+    audio.update(clock.getElapsedTime());
+    if (audio.onBeat) beatFlash = 0.3;
+  }
+  beatFlash *= 0.88;
+  shakeAmount *= 0.9;
+  
+  if (state === 'playing') {
+    // Difficulty & speed
+    difficulty = Math.min(CONFIG.DIFFICULTY_MAX, 1 + score * CONFIG.DIFFICULTY_RAMP_RATE);
+    speed = Math.min(CONFIG.MAX_SPEED, CONFIG.BASE_SPEED + score * CONFIG.SPEED_INCREMENT);
+    score += speed * dt * 30;
+    gameZ += speed * dt * 60;
+    
+    // Player lane movement
+    const lerpSpeed = CONFIG.LANE_SWITCH_SPEED;
+    playerMesh.position.x += (targetLaneX - playerMesh.position.x) * lerpSpeed * dt * 60;
+    
+    // Player jump physics
+    playerVY -= CONFIG.GRAVITY * dt * 60;
+    playerY += playerVY * dt * 60;
+    
+    if (playerY <= 0.5) {
+      playerY = 0.5;
+      playerVY = 0;
+      isGrounded = true;
+      isOnRamp = false;
+    }
+    
+    playerMesh.position.y = playerY;
+    
+    // Player rotation (spin in air)
+    if (!isGrounded) {
+      playerMesh.rotation.x += speed * 3 * dt;
+    } else {
+      const target = Math.round(playerMesh.rotation.x / (Math.PI/2)) * (Math.PI/2);
+      playerMesh.rotation.x += (target - playerMesh.rotation.x) * 0.2;
+    }
+    
+    // Squash & stretch
+    if (isGrounded) {
+      const squash = 1 + Math.abs(playerVY) * 0.1;
+      playerMesh.scale.set(1 + (squash-1)*0.5, 1/(squash*0.5+0.5), 1 + (squash-1)*0.3);
+    } else {
+      const stretch = 1 + Math.abs(playerVY) * 0.3;
+      playerMesh.scale.set(1/Math.sqrt(stretch), stretch, 1/Math.sqrt(stretch));
+    }
+    
+    // Move obstacles relative to player
+    for (const obs of obstacles) {
+      if (obs.type === 'barrel') {
+        obs.mesh.rotation.x += CONFIG.BARREL_ROLL_SPEED * obs.rollDir * dt * 60;
+      }
+      if (obs.type === 'pendulum') {
+        const swing = Math.sin(gameTime * CONFIG.PENDULUM_SPEED + obs.phase) * CONFIG.PENDULUM_AMPLITUDE;
+        obs.mesh.rotation.z = swing * 0.15;
+        if (obs.ball) {
+          obs.ball.position.x = swing;
+        }
+      }
+      // Visual Z position relative to camera
+      obs.mesh.position.z = obs.z - gameZ;
+    }
+    
+    // Spawn new obstacles
+    while (lastSpawnZ - gameZ < CONFIG.SPAWN_AHEAD) {
+      spawnObstacle();
+    }
+    
+    // Despawn old obstacles
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+      if (obstacles[i].z - gameZ < CONFIG.DESPAWN_BEHIND) {
+        scene.remove(obstacles[i].mesh);
+        obstacles.splice(i, 1);
+      }
+    }
+    
+    // Trail particles
+    if (Math.random() < 0.4) {
+      spawnTrailParticle(playerMesh.position.x, playerMesh.position.y, playerMesh.position.z);
+    }
+    
+    // Collision
+    if (checkCollisions()) {
+      die();
+    }
+    
+    // HUD
+    document.getElementById('score-hud').textContent = Math.floor(score);
+    const mult = difficulty.toFixed(1);
+    document.getElementById('multiplier-hud').textContent = mult > 1 ? `×${mult}` : '';
+  }
+  
+  // Update particles
+  updateParticles(dt);
+  
+  // Camera
+  const camTargetX = playerMesh.position.x * 0.3;
+  const camTargetY = 3.5 + playerMesh.position.y * 0.3;
+  camera.position.x += (camTargetX - camera.position.x) * 0.05;
+  camera.position.y += (camTargetY - camera.position.y) * 0.05;
+  camera.position.z = playerMesh.position.z - 6;
+  camera.lookAt(playerMesh.position.x * 0.5, 1.5, playerMesh.position.z + 15);
+  
+  // Lights follow player
+  cyanLight.position.set(playerMesh.position.x, 3, playerMesh.position.z + 5);
+  magentaLight.position.set(playerMesh.position.x, 5, playerMesh.position.z + 15);
+  
+  // Beat flash
+  const bgR = 5 + beatFlash * 40;
+  const bgG = 5 + beatFlash * 15;
+  const bgB = 16 + beatFlash * 30;
+  scene.background.setRGB(bgR/255, bgG/255, bgB/255);
+  
+  // Shake
+  if (shakeAmount > 0.01) {
+    camera.position.x += (Math.random()-0.5) * shakeAmount;
+    camera.position.y += (Math.random()-0.5) * shakeAmount;
+  }
+  
+  // Grid scroll
+  grid.position.z = playerMesh.position.z + 40;
+  
+  // Track scroll
+  track.position.z = playerMesh.position.z + CONFIG.TRACK_SEGMENT_LENGTH * CONFIG.TRACK_SEGMENTS / 2 - 10;
+  for (const child of trackGroup.children) {
+    if (child !== track) {
+      child.position.z = track.position.z;
+    }
+  }
+  
+  renderer.render(scene, camera);
+}
+
+// Resize handler
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ============================================================
+// INIT
+// ============================================================
+// Share score
+window.shareScore = function() {
+  const text = `🏃 Pulse Run — I scored ${Math.floor(score)}!\n\nDeaths: ${deaths} | High: ${highScore}\n\nCan you beat me? 👇\nhttps://pulse-run.vercel.app/games/pulse-run/`;
+  if (navigator.share) {
+    navigator.share({ title: 'Pulse Run Score', text }).catch(() => {});
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => {
+      document.querySelector('#death-screen button').textContent = '✓ Copied!';
+      setTimeout(() => document.querySelector('#death-screen button').textContent = '📤 Share Score', 2000);
+    });
+  }
+};
+
+Analytics.init();
+animate();
+</script>
+</body>
+</html>
