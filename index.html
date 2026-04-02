@@ -178,85 +178,11 @@ header::after {
   50% { opacity: 0.4; box-shadow: none; }
 }
 
-/* Feedback Widget */
+/* Feedback widget container */
 .feedback-section {
   max-width: 900px;
   margin: 0 auto;
   padding: 0 24px 48px;
-}
-.feedback-box {
-  background: linear-gradient(135deg, #0a0a1f 0%, #0d0d25 100%);
-  border: 1px solid rgba(255,0,170,0.1);
-  border-radius: 16px;
-  padding: 28px;
-}
-.feedback-box h3 {
-  font-size: 16px;
-  font-weight: 700;
-  margin-bottom: 4px;
-}
-.feedback-box .fb-sub {
-  color: #556;
-  font-size: 12px;
-  margin-bottom: 20px;
-}
-.feedback-stars {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-.star-btn {
-  background: none;
-  border: 2px solid rgba(255,255,255,0.1);
-  border-radius: 12px;
-  padding: 8px 14px;
-  font-size: 22px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.star-btn:hover, .star-btn.active {
-  border-color: #ff00aa;
-  background: rgba(255,0,170,0.1);
-  transform: scale(1.1);
-}
-.feedback-text {
-  width: 100%;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  padding: 14px 16px;
-  color: #ccd;
-  font-size: 14px;
-  font-family: inherit;
-  resize: vertical;
-  min-height: 70px;
-  margin-bottom: 12px;
-  outline: none;
-  transition: border-color 0.2s;
-}
-.feedback-text::placeholder { color: #334; }
-.feedback-text:focus { border-color: rgba(0,240,255,0.3); }
-.feedback-submit {
-  background: linear-gradient(135deg, #ff00aa, #cc0088);
-  color: #fff;
-  border: none;
-  padding: 10px 28px;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.feedback-submit:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,0,170,0.3); }
-.feedback-submit:disabled { opacity: 0.4; cursor: default; transform: none; box-shadow: none; }
-.feedback-thanks {
-  display: none;
-  color: #00f0ff;
-  font-size: 14px;
-  padding: 12px 0;
-  font-weight: 600;
 }
 
 /* Ad slots */
@@ -451,23 +377,11 @@ footer a:hover { color: #00f0ff; }
   </div>
 </div>
 
-<!-- Feedback -->
+<!-- Feedback Widget (embeddable — any project can use this) -->
 <div class="feedback-section">
-  <div class="section-title">💬 Player Feedback</div>
-  <div class="feedback-box">
-    <h3>Help the AI build better games</h3>
-    <div class="fb-sub">Your feedback directly shapes what gets built next. The AI reads every response.</div>
-    <div class="feedback-stars" id="feedback-stars">
-      <button class="star-btn" data-rating="1">😴</button>
-      <button class="star-btn" data-rating="2">😐</button>
-      <button class="star-btn" data-rating="3">🙂</button>
-      <button class="star-btn" data-rating="4">😄</button>
-      <button class="star-btn" data-rating="5">🤩</button>
-    </div>
-    <textarea class="feedback-text" id="feedback-text" placeholder="What games do you want? What should be better? Be honest — the AI can take it." maxlength="1000"></textarea>
-    <button class="feedback-submit" id="feedback-submit" disabled>Send Feedback</button>
-    <div class="feedback-thanks" id="feedback-thanks">⚡ Got it! This will be analyzed in the next 2-hour cycle.</div>
-  </div>
+  <div class="section-title">💬 Player Feedback — Comments, Bugs, Ideas</div>
+  <div id="aa-feedback"></div>
+  <script src="/feedback-widget.js" data-project="autonomous-arcade" data-api="/api/feedback"></script>
 </div>
 
 <!-- Ad Slot: Below Feedback -->
@@ -512,50 +426,6 @@ footer a:hover { color: #00f0ff; }
 <script defer src="/_vercel/speed-insights/script.js"></script>
 
 <script>
-// ========== FEEDBACK SYSTEM ==========
-(function() {
-  let selectedRating = 0;
-  const stars = document.querySelectorAll('.star-btn');
-  const textArea = document.getElementById('feedback-text');
-  const submitBtn = document.getElementById('feedback-submit');
-  const thanks = document.getElementById('feedback-thanks');
-
-  stars.forEach(btn => {
-    btn.addEventListener('click', () => {
-      selectedRating = parseInt(btn.dataset.rating);
-      stars.forEach(s => s.classList.remove('active'));
-      btn.classList.add('active');
-      submitBtn.disabled = false;
-    });
-  });
-
-  submitBtn.addEventListener('click', () => {
-    const feedback = {
-      rating: selectedRating,
-      text: textArea.value.trim(),
-      timestamp: new Date().toISOString(),
-      page: location.pathname,
-      ua: navigator.userAgent
-    };
-    
-    // Store locally
-    const existing = JSON.parse(localStorage.getItem('aa_feedback') || '[]');
-    existing.push(feedback);
-    localStorage.setItem('aa_feedback', JSON.stringify(existing));
-    
-    // Send to endpoint (when available)
-    if (navigator.sendBeacon) {
-      navigator.sendBeacon('/api/feedback', JSON.stringify(feedback));
-    }
-
-    // UI update
-    submitBtn.style.display = 'none';
-    textArea.style.display = 'none';
-    document.querySelector('.feedback-stars').style.display = 'none';
-    thanks.style.display = 'block';
-  });
-})();
-
 // ========== SESSION ANALYTICS ==========
 (function() {
   const sid = 'aa_' + Math.random().toString(36).substr(2, 9);
