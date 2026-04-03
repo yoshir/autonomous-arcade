@@ -9,7 +9,7 @@
 <meta property="og:description" content="Match hex colors before time runs out! Free browser game.">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="canonical" href="https://pulse-run.vercel.app/games/hex-match/">
+<link rel="canonical" href="https://autonomous-arcade.optimous.ai/games/hex-match/">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { width: 100%; height: 100%; overflow: hidden; background: #050510; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
@@ -480,7 +480,7 @@ function gameOver() {
 // SHARE
 // ============================================================
 document.getElementById('share-btn').addEventListener('click', () => {
-  const text = `🧠 Hex Match — I scored ${score} points in ${round} rounds!\n\nBest combo: ×${bestCombo} | Accuracy: ${totalPicks > 0 ? Math.round(correctPicks/totalPicks*100) : 0}%\n\nCan you beat me? 👇\nhttps://pulse-run.vercel.app/games/hex-match/`;
+  const text = `🧠 Hex Match — I scored ${score} points in ${round} rounds!\n\nBest combo: ×${bestCombo} | Accuracy: ${totalPicks > 0 ? Math.round(correctPicks/totalPicks*100) : 0}%\n\nCan you beat me? 👇\nhttps://autonomous-arcade.optimous.ai/games/hex-match/`;
   
   if (navigator.share) {
     navigator.share({ title: 'Hex Match Score', text }).catch(() => {});
@@ -515,5 +515,43 @@ console.log('[Analytics]', { event: 'page_load', game: 'hex-match', ts: Date.now
 
 <script defer src="/_vercel/insights/script.js"></script>
 <script defer src="/_vercel/speed-insights/script.js"></script>
+<!-- Changelog -->
+<div id="aa-changelog" style="position:fixed;bottom:76px;right:16px;z-index:9997;">
+  <button id="aa-changelog-toggle" style="background:rgba(10,10,31,0.9);border:1px solid rgba(0,240,255,0.15);border-radius:12px;padding:8px 16px;color:#00f0ff;font-size:12px;cursor:pointer;font-weight:600;letter-spacing:1px;">📋 CHANGELOG</button>
+  <div id="aa-changelog-panel" style="display:none;width:340px;max-height:400px;overflow-y:auto;background:rgba(10,10,31,0.95);border:1px solid rgba(0,240,255,0.15);border-radius:16px;padding:16px;backdrop-filter:blur(12px);margin-top:8px;">
+    <h4 style="color:#00f0ff;font-size:12px;letter-spacing:2px;margin-bottom:12px;">ACTIVITY LOG</h4>
+    <div style="border-left:2px solid #ff00aa;padding-left:12px;margin-bottom:12px;">
+      <div style="color:#556;font-size:11px;">Apr 2, 2026</div>
+      <div style="color:#ccd;font-size:13px;">🚀 <b>Launch</b> — Color memory speed game with hex codes, combo system, progressive difficulty</div>
+    </div>
+    <div style="border-left:2px solid #ff00aa;padding-left:12px;margin-bottom:12px;">
+      <div style="color:#556;font-size:11px;">Apr 2, 2026</div>
+      <div style="color:#ccd;font-size:13px;">📤 Added share score button</div>
+    </div>
+  </div>
+</div>
+<script>
+document.getElementById('aa-changelog-toggle').addEventListener('click',function(){
+  const p=document.getElementById('aa-changelog-panel');
+  p.style.display=p.style.display==='none'?'block':'none';
+});
+</script>
+
+<!-- Feedback Widget -->
+<div id="aa-feedback" style="position:fixed;bottom:16px;right:16px;z-index:9999;width:360px;max-height:500px;overflow-y:auto;background:rgba(10,10,31,0.95);border:1px solid rgba(0,240,255,0.15);border-radius:16px;padding:16px;backdrop-filter:blur(12px);display:none;">
+  <button id="aa-feedback-close" style="position:absolute;top:8px;right:12px;background:none;border:none;color:#556;font-size:18px;cursor:pointer;">✕</button>
+</div>
+<button id="aa-feedback-toggle" style="position:fixed;bottom:16px;right:16px;z-index:9998;background:linear-gradient(135deg,#ff00aa,#cc0088);color:#fff;border:none;border-radius:50%;width:52px;height:52px;font-size:24px;cursor:pointer;box-shadow:0 4px 20px rgba(255,0,170,0.4);transition:transform 0.2s;" title="Send Feedback">💬</button>
+<script src="/feedback-widget.js" data-project="hex-match" data-api="/api/feedback" data-container="aa-feedback"></script>
+<script>
+(function(){
+  const tog=document.getElementById('aa-feedback-toggle');
+  const panel=document.getElementById('aa-feedback');
+  const close=document.getElementById('aa-feedback-close');
+  tog.addEventListener('click',()=>{panel.style.display='block';tog.style.display='none';});
+  close.addEventListener('click',()=>{panel.style.display='none';tog.style.display='block';});
+})();
+</script>
+
 </body>
 </html>

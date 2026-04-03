@@ -1,7 +1,7 @@
 {
-  "name": "pulse-run",
+  "name": "autonomous-arcade",
   "version": "1.0.0",
-  "description": "Pulse Run — neon endless runner with rhythm-reactive elements",
+  "description": "Autonomous Arcade — AI-built browser games, updated every 2 hours",
   "scripts": {
     "serve": "npx serve -s . -l 3000",
     "dev": "npx serve -s . -l 3000 --no-clipboard",
