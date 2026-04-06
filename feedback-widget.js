@@ -126,6 +126,18 @@
     .aafw-msg.success { color: ${colors.cyan}; }
     .aafw-msg.error { color: #ff4444; }
     .aafw-page-url { font-size: 11px; color: ${colors.muted}; word-break: break-all; }
+
+    /* AI Reply */
+    .aafw-ai-reply {
+      margin-top: 10px; padding: 10px 12px; border-radius: 8px;
+      background: rgba(0,240,255,0.05); border: 1px solid rgba(0,240,255,0.15);
+      font-size: 13px; line-height: 1.5; color: ${colors.text};
+    }
+    .aafw-ai-badge {
+      display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: 1px;
+      text-transform: uppercase; padding: 2px 6px; border-radius: 4px; margin-bottom: 6px;
+      background: rgba(0,240,255,0.15); color: ${colors.cyan};
+    }
   `;
 
   // Helpers
@@ -292,6 +304,12 @@
         </div>
         ${item.rating ? `<div class="aafw-item-rating">${ratingStars(item.rating)}</div>` : ''}
         ${item.content ? `<div class="aafw-item-content">${escapeHtml(item.content)}</div>` : ''}
+        ${item.ai_reply ? `
+          <div class="aafw-ai-reply">
+            <div class="aafw-ai-badge">AI Reply</div>
+            ${escapeHtml(item.ai_reply)}
+          </div>
+        ` : ''}
         <div class="aafw-item-footer">
           <button class="aafw-heart ${hearted[item.id] ? 'hearted' : ''}" data-id="${item.id}">
             ${hearted[item.id] ? '❤️' : '🤍'} ${item.hearts || 0}
