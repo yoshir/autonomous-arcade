@@ -138,6 +138,13 @@
       text-transform: uppercase; padding: 2px 6px; border-radius: 4px; margin-bottom: 6px;
       background: rgba(0,240,255,0.15); color: ${colors.cyan};
     }
+    .aafw-ai-thinking {
+      margin-top: 10px; padding: 10px 12px; border-radius: 8px;
+      background: rgba(0,240,255,0.03); border: 1px solid rgba(0,240,255,0.08);
+      font-size: 12px; color: ${colors.muted}; font-style: italic;
+    }
+    .aafw-ai-thinking-dots::after { content: ''; animation: aafw-dots 1.5s infinite; }
+    @keyframes aafw-dots { 0%,20%{content:'.'} 40%{content:'..'} 60%,100%{content:'...'} }
   `;
 
   // Helpers
@@ -165,6 +172,8 @@
   let currentRating = 0;
   let feedItems = [];
   let hearted = JSON.parse(localStorage.getItem('aa_hearted') || '{}');
+  let pendingAiReplyId = null; // ID of the just-submitted item waiting for AI reply
+  let pollInterval = null;
 
   // API calls
   async function apiFetch(method, params = {}) {
@@ -201,6 +210,33 @@
 
   async function heartItem(id) {
     return apiFetch('PATCH', { query: { id } });
+  }
+
+  // Poll for AI reply on a specific item
+  function startAiReplyPoll(itemId) {
+    if (pollInterval) clearInterval(pollInterval);
+
+    const MAX_POLLS = 30; // 30 × 2s = 60s max wait
+    let polls = 0;
+
+    pollInterval = setInterval(async () => {
+      polls++;
+      const items = await apiFetch('GET', { query: { id: itemId, limit: 1 } });
+      const item = Array.isArray(items) ? items[0] : null;
+
+      if (item?.ai_reply) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+        pendingAiReplyId = null;
+        await loadFeed();
+      } else if (polls >= MAX_POLLS) {
+        // Timeout — just show the feed without AI reply
+        clearInterval(pollInterval);
+        pollInterval = null;
+        pendingAiReplyId = null;
+        await loadFeed();
+      }
+    }, 2000);
   }
 
   // Render
@@ -270,12 +306,20 @@
 
       container.querySelector('#aafw-submit').disabled = true;
       try {
-        await submitFeedback(currentType, content || null, currentRating || null);
+        const result = await submitFeedback(currentType, content || null, currentRating || null);
         msg.className = 'aafw-msg success';
-        msg.textContent = '⚡ Received! This feeds into the next AI build cycle.';
+        msg.textContent = '⚡ Received! Getting AI reply...';
         input.value = '';
         currentRating = 0;
-        setTimeout(() => loadFeed(), 500);
+
+        // Start polling for AI reply if we got an ID back
+        const newItem = Array.isArray(result) ? result[0] : result;
+        if (newItem?.id) {
+          pendingAiReplyId = newItem.id;
+          startAiReplyPoll(newItem.id);
+        } else {
+          setTimeout(() => loadFeed(), 500);
+        }
       } catch(e) {
         msg.className = 'aafw-msg error';
         msg.textContent = 'Failed to send — try again.';
@@ -308,6 +352,11 @@
           <div class="aafw-ai-reply">
             <div class="aafw-ai-badge">AI Reply</div>
             ${escapeHtml(item.ai_reply)}
+          </div>
+        ` : item.id === pendingAiReplyId ? `
+          <div class="aafw-ai-reply">
+            <div class="aafw-ai-badge">AI Reply</div>
+            <div class="aafw-ai-thinking">Getting your personalized reply<span class="aafw-ai-thinking-dots"></span></div>
           </div>
         ` : ''}
         <div class="aafw-item-footer">
