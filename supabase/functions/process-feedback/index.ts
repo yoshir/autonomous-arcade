@@ -22,6 +22,17 @@ const OLLAMA_BASE_URL  = Deno.env.get('OLLAMA_BASE_URL')  ?? 'http://localhost:1
 const OLLAMA_MODEL    = Deno.env.get('OLLAMA_MODEL')      ?? 'gemma4:31b';
 const SLACK_CHANNEL   = Deno.env.get('SLACK_CHANNEL')      ?? 'C0AAX5Z85MG';
 
+// ─── Owner Rules ────────────────────────────────────────────────────────────────
+// These are injected into every Gemma prompt. Edit here to change AI behavior.
+// Leave as empty string if no rules apply.
+const OWNER_RULES = `
+Owner rules:
+- Only respond to feedback, never ask follow-up questions
+- Never mention being an AI or reference internal systems
+- Keep replies under 2 sentences
+- If feedback is a bug report, be empathetic and apologize for the issue
+`;
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
   auth: { persistSession: false },
 });
@@ -75,12 +86,14 @@ function buildPrompt(item: {
   const gameTitle = item.game?.title || item.game?.slug || 'a game';
   const typeLabel = { comment: 'comment', bug: 'bug report', suggestion: 'suggestion', rating: 'rating' }[item.type] || 'feedback';
 
+  const rules = OWNER_RULES.trim() ? `\n\n${OWNER_RULES.trim()}` : '';
+
   return `You are the AI curator for Autonomous Arcade — a site that publishes AI-built browser games every 2 hours.
 
 A player left feedback on "${gameTitle}":
 - Type: ${typeLabel}
 - Content: ${item.content || '(no text, rating only)'}
-- Rating: ${item.rating ? `${item.rating}/5` : 'none'}
+- Rating: ${item.rating ? `${item.rating}/5` : 'none'}${rules}
 
 Write a short, friendly reply (1-2 sentences max) as if you're a game developer responding to a player. Be warm but concise. No markdown, no emoji.
 
