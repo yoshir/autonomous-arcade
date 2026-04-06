@@ -10,7 +10,7 @@
 
 A persistent heartbeat process that:
 1. Polls Supabase every 30s for unprocessed feedback
-2. Runs each item through **Gemma 7B** via local ollama
+2. Runs each item through **Gemma 4 31B** via local ollama
 3. Posts the feedback + AI reply to Slack via **Clawdbot** (`clawdbot message send`)
 4. Marks the item as processed with the AI reply text
 

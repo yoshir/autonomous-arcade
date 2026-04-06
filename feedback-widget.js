@@ -1,18 +1,22 @@
 /**
  * Autonomous Arcade — Embeddable Feedback Widget
- * 
+ *
  * Drop this on ANY site to get comments, ratings, bug reports, and likes.
- * 
- * Usage:
+ *
+ * Usage (Autonomous Arcade games):
  *   <div id="aa-feedback"></div>
- *   <script src="https://autonomous-arcade.optimous.ai/feedback-widget.js"
- *           data-project="your-project-id"
- *           data-api="https://autonomous-arcade.optimous.ai/api/feedback">
+ *   <script src="/feedback-widget.js"
+ *           data-game-id="00000000-0000-0000-0000-000000000000"
+ *           data-project="autonomous-arcade"
+ *           data-api="/api/feedback">
  *   </script>
- * 
- * Or with defaults (uses autonomous-arcade project + API):
+ *
+ * Legacy (slug-based, deprecated):
  *   <div id="aa-feedback"></div>
- *   <script src="https://autonomous-arcade.optimous.ai/feedback-widget.js"></script>
+ *   <script src="/feedback-widget.js"
+ *           data-project="pulse-run"
+ *           data-api="/api/feedback">
+ *   </script>
  */
 (function() {
   'use strict';
@@ -21,6 +25,7 @@
   const scriptTag = document.currentScript;
   const API = scriptTag?.getAttribute('data-api') || '/api/feedback';
   const PROJECT = scriptTag?.getAttribute('data-project') || 'autonomous-arcade';
+  const GAME_ID = scriptTag?.getAttribute('data-game-id') || null; // UUID of the game
   const CONTAINER = scriptTag?.getAttribute('data-container') || 'aa-feedback';
   const THEME = scriptTag?.getAttribute('data-theme') || 'dark';
 
@@ -171,7 +176,14 @@
 
   async function submitFeedback(type, content, rating) {
     return apiFetch('POST', {
-      body: { type, content, rating: rating || undefined, page_url: location.href, session_id: sessionId }
+      body: {
+        type,
+        content: content || null,
+        rating: rating || null,
+        game_id: GAME_ID || null,
+        page_url: location.href,
+        session_id: sessionId,
+      }
     });
   }
 
