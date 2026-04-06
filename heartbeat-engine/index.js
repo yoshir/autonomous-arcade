@@ -1,25 +1,27 @@
 /**
- * Autonomous Arcade Heartbeat Engine
+ * Autonomous Arcade Heartbeat Engine — AI Edition
  *
- * Polls Supabase for unprocessed feedback from the autonomous_arcade_feedback table.
- * Runs each item through Gemma via local ollama.
- * Posts AI replies to Slack via Clawdbot (clawdbot message send).
+ * Runs 4x/day via launchd/cron.
+ * Each cycle:
+ *   1. Pull new feedback since last run
+ *   2. Evaluate against business-goals.md
+ *   3. Make direct changes to game files
+ *   4. Insert changelog entries (Supabase)
+ *   5. Post summary to Slack
  *
- * Lives: ~/sym-dropbox/_dev/autonomous-arcade/heartbeat-engine/
- * Run:   npm start
- *
- * Requirements:
- *   - ollama serve (ollama serve)
- *   - gemma:latest model pulled (ollama pull gemma:7b)
- *   - Clawdbot running with Slack configured
- *   - Supabase: run MIGRATION.sql first
+ * Business goal: $50k MRR via AdSense
+ * Growth lens: traffic ↑  retention ↑  monetization ↑
  */
 
 import { createClient } from '@supabase/supabase-js';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const execAsync = promisify(exec);
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ─── Config ────────────────────────────────────────────────────────────────────
 
@@ -35,9 +37,10 @@ const CONFIG = {
   slack: {
     channelId: 'C0AAX5Z85MG', // #yosh-optimous-ops
   },
-  pollIntervalMs: 30_000,
-  maxRetries: 3,
-  retryDelayMs: 5_000,
+  gamesDir: join(__dirname, '..', 'games'),
+  businessGoalsPath: join(__dirname, '..', 'business-goals.md'),
+  maxChangesPerCycle: 5,
+  heartbeatHourInterval: 6, // 4x/day
 };
 
 // ─── Supabase client ────────────────────────────────────────────────────────────
@@ -46,9 +49,8 @@ const supabase = createClient(CONFIG.supabase.url, CONFIG.supabase.anonKey);
 
 // ─── State ─────────────────────────────────────────────────────────────────────
 
-let consecutiveErrors = 0;
-let lastPollAt = null;
-let processedCount = 0;
+let lastRunAt = loadLastRun();
+let runCount = 0;
 let startedAt = Date.now();
 
 // ─── Logging ───────────────────────────────────────────────────────────────────
@@ -63,15 +65,34 @@ const info  = (msg, m) => log('info', msg, m);
 const warn  = (msg, m) => log('warn', msg, m);
 const error = (msg, m) => log('error', msg, m);
 
+// ─── Persistence ───────────────────────────────────────────────────────────────
+
+function loadLastRun() {
+  const f = join(CONFIG.gamesDir, '.last-heartbeat');
+  try {
+    if (existsSync(f)) return new Date(readFileSync(f, 'utf8').trim());
+  } catch (_) {}
+  // First run: look at last 24h
+  const d = new Date();
+  d.setHours(d.getHours() - 24);
+  return d;
+}
+
+function saveLastRun() {
+  const f = join(CONFIG.gamesDir, '.last-heartbeat');
+  try {
+    writeFileSync(f, new Date().toISOString());
+  } catch (_) {}
+}
+
 // ─── Clawdbot Slack relay ──────────────────────────────────────────────────────
 
 async function postToSlack(text, channelOverride) {
   const channel = channelOverride || CONFIG.slack.channelId;
-  const target = `channel:${channel}`;
   const cmd = [
     'clawdbot', 'message', 'send',
     '--channel', 'slack',
-    '--target', target,
+    '--target', `channel:${channel}`,
     '--message', JSON.stringify(text),
   ].join(' ');
 
@@ -79,29 +100,12 @@ async function postToSlack(text, channelOverride) {
     await execAsync(cmd, { timeout: 15_000 });
     info('Slack posted', { text: String(text).slice(0, 80) });
   } catch (e) {
-    if (e.message.includes('ENOENT')) {
-      throw new Error('clawdbot CLI not found in PATH');
-    }
+    if (e.message.includes('ENOENT')) throw new Error('clawdbot CLI not found');
     throw e;
   }
 }
 
-// ─── Periodic heartbeat ───────────────────────────────────────────────────────
-
-async function postHeartbeat() {
-  const uptime = Math.floor((Date.now() - startedAt) / 1000);
-  const hrs = Math.floor(uptime / 3600);
-  const mins = Math.floor((uptime % 3600) / 60);
-  const mem = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-
-  await postToSlack(
-`*Autonomous Arcade Heartbeat* :heartbeat:
-_Uptime: ${hrs}h ${mins}m | Processed: ${processedCount} | Consecutive errors: ${consecutiveErrors}_
-Last poll: ${lastPollAt ? new Date(lastPollAt).toLocaleTimeString() : 'never'} · Heap: ${mem}MB · Model: ${CONFIG.ollama.model}`
-  );
-}
-
-// ─── Ollama / Gemma ───────────────────────────────────────────────────────────
+// ─── Ollama / Gemma 4 ─────────────────────────────────────────────────────────
 
 async function askGemma(prompt) {
   const res = await fetch(`${CONFIG.ollama.baseUrl}/api/generate`, {
@@ -111,7 +115,7 @@ async function askGemma(prompt) {
       model: CONFIG.ollama.model,
       prompt,
       stream: false,
-      options: { temperature: 0.7, num_predict: 256 },
+      options: { temperature: 0.7, num_predict: 512 },
     }),
   });
 
@@ -120,84 +124,41 @@ async function askGemma(prompt) {
   return (data.response || '(no response)').trim();
 }
 
-function buildPrompt(feedback) {
-  const gameTitle = feedback.game?.title || feedback.game?.slug || 'a game';
-  const typeLabel = { comment: 'comment', bug: 'bug report', suggestion: 'suggestion', rating: 'rating' }[feedback.type] || 'feedback';
+// ─── Business goals ───────────────────────────────────────────────────────────
 
-  return `You are the AI curator for Autonomous Arcade — a site that publishes AI-built browser games every 2 hours.
-
-A player left feedback on "${gameTitle}":
-- Type: ${typeLabel}
-- Content: ${feedback.content || '(no text, rating only)'}
-- Rating: ${feedback.rating ? `${feedback.rating}/5` : 'none'}
-
-Write a short, friendly reply (1-2 sentences max) as if you're a game developer responding to a player. Be warm but concise. No markdown, no emoji.
-
-Reply:`;
+function loadBusinessGoals() {
+  try {
+    return readFileSync(CONFIG.businessGoalsPath, 'utf8');
+  } catch (e) {
+    warn('Could not read business-goals.md', { error: e.message });
+    return '';
+  }
 }
 
-// ─── Mark processed ────────────────────────────────────────────────────────────
+// ─── Load changelog ───────────────────────────────────────────────────────────
 
-async function markProcessed(id, aiReply) {
+function getChangelogIcon(type) {
+  return { bug_fix: '🐛', new_feature: '✨', improvement: '⚡', tweak: '🎮', deployment: '🚀' }[type] || '🚀';
+}
+
+async function insertChangelog({ gameSlug, gameId, icon, message, changeType }) {
   const { error } = await supabase
-    .from('autonomous_arcade_feedback')
-    .update({ ai_processed: true, ai_reply: aiReply, ai_reply_at: new Date().toISOString() })
-    .eq('id', id);
+    .from('autonomous_arcade_changelog')
+    .insert({
+      game_slug:   gameSlug  || null,
+      game_id:     gameId    || null,
+      icon:        icon      || '🚀',
+      message,
+      change_type: changeType || 'improvement',
+    });
 
   if (error) throw error;
+  info('Changelog inserted', { gameSlug, message: message.slice(0, 60) });
 }
 
-// ─── Process one feedback item ─────────────────────────────────────────────────
+// ─── Fetch unprocessed feedback ───────────────────────────────────────────────
 
-async function processItem(item) {
-  info(`Processing ${item.id}`, { type: item.type, game: item.game?.slug });
-
-  const prompt = buildPrompt(item);
-
-  let reply;
-  for (let attempt = 1; attempt <= CONFIG.maxRetries; attempt++) {
-    try {
-      reply = await askGemma(prompt);
-      break;
-    } catch (e) {
-      warn(`Ollama attempt ${attempt} failed`, { error: e.message });
-      if (attempt < CONFIG.maxRetries) await sleep(CONFIG.retryDelayMs);
-      else reply = `⚠️ AI error after ${CONFIG.maxRetries} attempts: ${e.message}`;
-    }
-  }
-
-  const gameTitle = item.game?.title || item.game?.slug || item.page_url || 'game';
-  const typeIcon  = { comment: '💬', bug: '🐛', suggestion: '💡', rating: '⭐' }[item.type] || '💬';
-  const ratingStr = item.rating ? ` · ${'⭐'.repeat(item.rating)}` : '';
-
-  const slackMsg =
-`${typeIcon} *Feedback* — ${gameTitle}
-*${item.type}*${ratingStr}
-${item.content || '(rating only)'}
-
-:robot-face: *AI reply:*
-${reply}
-_via Gemma · <${item.page_url || 'link'}|source>_`;
-
-  try {
-    await postToSlack(slackMsg);
-    await markProcessed(item.id, reply);
-    processedCount++;
-    consecutiveErrors = 0;
-    info(`✓ Done ${item.id}`, { reply: reply.slice(0, 60) });
-  } catch (e) {
-    error(`Failed to post/mark ${item.id}`, { error: e.message });
-    consecutiveErrors++;
-    throw e;
-  }
-}
-
-// ─── Poll loop ────────────────────────────────────────────────────────────────
-
-async function poll() {
-  lastPollAt = Date.now();
-
-  // JOIN feedback with game registry to get game title/slug
+async function fetchNewFeedback() {
   const { data, error } = await supabase
     .from('autonomous_arcade_feedback')
     .select(`
@@ -205,90 +166,270 @@ async function poll() {
       game:autonomous_arcade_games!game_id ( id, slug, title )
     `)
     .eq('ai_processed', false)
+    .gt('created_at', lastRunAt.toISOString())
     .order('created_at', { ascending: true })
-    .limit(10);
+    .limit(20);
 
-  if (error) {
-    error('Poll failed', { error: error.message });
-    consecutiveErrors++;
+  if (error) throw error;
+  return data || [];
+}
+
+// ─── Mark feedback processed ──────────────────────────────────────────────────
+
+async function markProcessed(id, decision) {
+  const { error } = await supabase
+    .from('autonomous_arcade_feedback')
+    .update({
+      ai_processed: true,
+      ai_reply: decision,
+      ai_reply_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+// ─── Get game files ───────────────────────────────────────────────────────────
+
+function getGameFiles(slug) {
+  const dir = join(CONFIG.gamesDir, slug);
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir).filter(f => f.endsWith('.html') || f.endsWith('.js'));
+}
+
+// ─── Read game file ───────────────────────────────────────────────────────────
+
+function readGameFile(slug, filename) {
+  const path = join(CONFIG.gamesDir, slug, filename);
+  if (!existsSync(path)) return null;
+  return readFileSync(path, 'utf8');
+}
+
+function writeGameFile(slug, filename, content) {
+  const path = join(CONFIG.gamesDir, slug, filename);
+  writeFileSync(path, content, 'utf8');
+  info('Wrote file', { slug, file: filename, size: content.length });
+}
+
+// ─── Gemma: evaluate feedback → decide what to change ─────────────────────────
+
+async function evaluateFeedback(feedback, businessGoals) {
+  const gameTitle = feedback.game?.title || feedback.game?.slug || 'the game';
+  const typeLabel = { comment: 'comment', bug: 'bug report', suggestion: 'suggestion', rating: 'rating' }[feedback.type] || 'feedback';
+
+  const prompt = `You are an AI operations agent for Autonomous Arcade — a browser game site that earns revenue via AdSense.
+
+BUSINESS GOALS:
+${businessGoals}
+
+PLAYER FEEDBACK on "${gameTitle}":
+- Type: ${typeLabel}
+- Content: ${feedback.content || '(no text, rating only)'}
+- Rating: ${feedback.rating ? `${feedback.rating}/5` : 'none'}
+
+Your job: decide what to change. You have full code access to game files.
+
+Respond ONLY with valid JSON (no markdown, no explanation outside the JSON):
+{
+  "decision": "change" | "ignore" | "note",
+  "change_type": "bug_fix" | "improvement" | "tweak" | "new_feature" | null,
+  "file": "index.html" | "game.js" | null,
+  "change_summary": "one sentence describing what to change",
+  "reasoning": "why this serves the $50k MRR goal"
+}`;
+
+  try {
+    const reply = await askGemma(prompt);
+    // Extract JSON from reply
+    const jsonMatch = reply.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON in Gemma response');
+    return JSON.parse(jsonMatch[0]);
+  } catch (e) {
+    warn('Evaluation failed', { error: e.message, feedbackId: feedback.id });
+    return { decision: 'ignore', reasoning: `Evaluation error: ${e.message}` };
+  }
+}
+
+// ─── Gemma: implement a change ────────────────────────────────────────────────
+
+async function implementChange(feedback, evaluation, businessGoals) {
+  const slug = feedback.game?.slug;
+  if (!slug || !evaluation.file) return null;
+
+  const content = readGameFile(slug, evaluation.file);
+  if (!content) return null;
+
+  const gameTitle = feedback.game?.title || slug;
+
+  const prompt = `You are an AI operations agent for Autonomous Arcade.
+
+BUSINESS GOALS:
+${businessGoals}
+
+The player left this feedback on "${gameTitle}":
+"${feedback.content || '(rating only)'}"
+
+Your evaluation: ${evaluation.change_summary}
+
+The game is in ${evaluation.file}. Here is the current content (excerpt):
+${content.slice(0, 8000)}
+
+Respond ONLY with valid JSON:
+{
+  "change": "replace" | "tweak" | "add" | null,
+  "description": "what you actually changed (for the changelog, 1 sentence)",
+  "new_code": "the full replacement content for the file (if replace), or the section to add (if add), or the exact tweak to make (if tweak)"
+}
+
+Rules:
+- If "replace": include the full new file content in new_code
+- If "tweak": describe in new_code exactly what to change and where (be surgical)
+- Keep all existing functionality intact
+- Make it better, not different for the sake of it`;
+
+  try {
+    const reply = await askGemma(prompt);
+    const jsonMatch = reply.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON in implementation response');
+    return JSON.parse(jsonMatch[0]);
+  } catch (e) {
+    warn('Implementation failed', { error: e.message });
+    return null;
+  }
+}
+
+// ─── Main heartbeat cycle ──────────────────────────────────────────────────────
+
+async function runHeartbeatCycle() {
+  const cycleNum = runCount++;
+  info(`=== Heartbeat cycle ${cycleNum} ===`);
+
+  const businessGoals = loadBusinessGoals();
+  if (!businessGoals) {
+    warn('No business goals loaded, skipping');
     return;
   }
 
-  if (!data || data.length === 0) {
-    info('No new feedback, sleeping');
+  const feedback = await fetchNewFeedback();
+  if (!feedback.length) {
+    info('No new feedback, skipping');
     return;
   }
 
-  info(`Found ${data.length} unprocessed`);
+  info(`Found ${feedback.length} new feedback items`);
 
-  for (const item of data) {
-    try {
-      await processItem(item);
-    } catch (e) {
-      error(`Error processing ${item.id}`, { error: e.message });
-      consecutiveErrors++;
+  const changes = [];
+  let changesMade = 0;
+
+  for (const item of feedback) {
+    if (changesMade >= CONFIG.maxChangesPerCycle) {
+      info(`Max changes (${CONFIG.maxChangesPerCycle}) reached, skipping remaining`);
+      break;
+    }
+
+    const evaluation = await evaluateFeedback(item, businessGoals);
+    info(`Feedback ${item.id}: ${evaluation.decision}`, { reasoning: evaluation.reasoning });
+
+    if (evaluation.decision === 'ignore') {
+      await markProcessed(item.id, `Ignored: ${evaluation.reasoning}`);
+      continue;
+    }
+
+    if (evaluation.decision === 'note') {
+      await markProcessed(item.id, `Noted: ${evaluation.change_summary}`);
+      await insertChangelog({
+        gameSlug:  item.game?.slug || null,
+        gameId:    item.game?.id    || null,
+        icon:      '📝',
+        message:   `Feedback reviewed: ${evaluation.change_summary}`,
+        changeType: 'tweak',
+      });
+      continue;
+    }
+
+    // decision === 'change'
+    if (evaluation.file) {
+      const implementation = await implementChange(item, evaluation, businessGoals);
+      if (implementation?.new_code && implementation?.description) {
+        try {
+          writeGameFile(item.game.slug, evaluation.file, implementation.new_code);
+          await insertChangelog({
+            gameSlug:  item.game.slug,
+            gameId:    item.game.id,
+            icon:      getChangelogIcon(evaluation.change_type),
+            message:   implementation.description,
+            changeType: evaluation.change_type || 'improvement',
+          });
+          changes.push({
+            game: item.game?.title || item.game?.slug,
+            summary: implementation.description,
+            type: evaluation.change_type,
+          });
+          changesMade++;
+          await markProcessed(item.id, `Changed: ${implementation.description}`);
+        } catch (e) {
+          error('Failed to write change', { error: e.message });
+          await markProcessed(item.id, `Failed: ${e.message}`);
+        }
+      } else {
+        await markProcessed(item.id, `Could not implement: ${evaluation.change_summary}`);
+      }
+    } else {
+      await markProcessed(item.id, `No file change needed: ${evaluation.change_summary}`);
     }
   }
+
+  // Post to Slack
+  if (changes.length > 0) {
+    const lines = changes.map(c => `• *${c.game}*: ${c.summary}`).join('\n');
+    await postToSlack(
+`*Autonomous Arcade — Heartbeat #${cycleNum}*\n${lines}\n_Changelogs posted to activity feed_`
+    );
+  } else {
+    await postToSlack(`*Autonomous Arcade — Heartbeat #${cycleNum}* reviewed ${feedback.length} feedback items — no changes needed this cycle.`);
+  }
+
+  info(`Heartbeat #${cycleNum} done`, { changes: changes.length, feedback: feedback.length });
 }
 
-// ─── Utilities ────────────────────────────────────────────────────────────────
+// ─── Periodic heartbeat (liveness) ───────────────────────────────────────────
 
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-// ─── Graceful shutdown ────────────────────────────────────────────────────────
-
-let shuttingDown = false;
-
-async function shutdown(signal) {
-  if (shuttingDown) return;
-  shuttingDown = true;
-  info(`Received ${signal}, shutting down...`);
-  try {
-    await postToSlack(`:warning: Autonomous Arcade Heartbeat stopped (${signal}).`);
-  } catch (_) {}
-  process.exit(0);
+async function postLiveness() {
+  const uptime = Math.floor((Date.now() - startedAt) / 1000);
+  const hrs = Math.floor(uptime / 3600);
+  await postToSlack(
+`*Autonomous Arcade Heartbeat* :heartbeat:\nUptime: ${hrs}h · Run #${runCount}`
+  );
 }
-
-process.on('SIGINT',  () => shutdown('SIGINT'));
-process.on('SIGTERM', () => shutdown('SIGTERM'));
 
 // ─── Startup ──────────────────────────────────────────────────────────────────
 
 async function main() {
-  info('Autonomous Arcade Heartbeat Engine starting', {
+  info('Heartbeat Engine starting', {
     model: CONFIG.ollama.model,
-    pollInterval: `${CONFIG.pollIntervalMs / 1000}s`,
-    relay: 'clawdbot message send',
-    mode: 'slack-heartbeat-only',
-    note: 'Feedback AI processing moved to pg_net + Edge Function',
+    gamesDir: CONFIG.gamesDir,
+    lastRun: lastRunAt.toISOString(),
   });
 
-  // Verify ollama
   try {
-    const res = await fetch(`${CONFIG.ollama.baseUrl}/api/tags`);
-    if (!res.ok) throw new Error(`Ollama ${res.status}`);
-    const data = await res.json();
-    const hasModel = data.models?.some(m => m.name.includes('gemma'));
-    if (!hasModel) warn('gemma model not found. Run: ollama pull gemma:7b');
-    else info('Ollama OK', { model: CONFIG.ollama.model });
+    await postToSlack(`:robot_face: Autonomous Arcade Heartbeat Engine started. Running ${CONFIG.heartbeatHourInterval}h interval.`);
   } catch (e) {
-    error('Ollama not reachable', { error: e.message });
-    info('Start ollama: ollama serve');
+    warn('Startup ping failed', { error: e.message });
   }
 
-  // Startup ping
-  try {
-    await postToSlack(`:rocket: Autonomous Arcade Heartbeat started. Polling every 30s.`);
-  } catch (e) {
-    warn('Could not post startup message', { error: e.message });
-  }
+  await runHeartbeatCycle();
+  saveLastRun();
 
-  // Heartbeat-only loop: post Slack status every 30s
-  // (does not hit Supabase — pg_net handles feedback processing)
-  while (!shuttingDown) {
-    await sleep(CONFIG.pollIntervalMs);
-    await postHeartbeat();
-  }
+  // Schedule next run
+  const intervalMs = CONFIG.heartbeatHourInterval * 60 * 60 * 1000;
+  setTimeout(async () => {
+    await runHeartbeatCycle();
+    saveLastRun();
+    setInterval(runHeartbeatCycle, intervalMs);
+  }, intervalMs);
 }
 
-main().catch(e => { error('Fatal', { error: e.message }); process.exit(1); });
+main().catch(e => {
+  error('Fatal', { error: e.message });
+  process.exit(1);
+});
