@@ -5,6 +5,7 @@
   "scripts": {
     "serve": "npx serve -s . -l 3000",
     "dev": "npx serve -s . -l 3000 --no-clipboard",
+    "build": "echo 'static site - no build needed'",
     "deploy": "npx vercel --yes"
   },
   "keywords": ["game", "endless-runner", "html5", "canvas"],
