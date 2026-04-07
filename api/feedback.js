@@ -9,11 +9,11 @@
 //
 // Ollama served via Tailscale Funnel: https://ryans-macbook-pro-2.taila8cf65.ts.net
 
-const SUPABASE_URL    = 'https://ildvhztonjaensqkmxsk.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlsZHZoenRvbmphZW5zcWtteHNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyMDc4OTMsImV4cCI6MjA2MDc4Mzg5M30.hYRsS9_ODZfz5i4PwNpp9I5w4gc6L9IBfBmPVkN7oXA';
+const SUPABASE_URL    = process.env.SUPABASE_URL || 'https://ildvhztonjaensqkmxsk.supabase.co';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
 // ── Ollama config (Tailscale Funnel public URL) ───────────────────────────────
-const OLLAMA_BASE = 'https://ryans-macbook-pro-2.taila8cf65.ts.net';
+const OLLAMA_BASE = process.env.OLLAMA_BASE_URL;
 const OLLAMA_MODEL = 'gemma2:2b'; // fast model for real-time API responses (~2-5s)
 
 const CORS_HEADERS = {
