@@ -192,6 +192,9 @@ async function markProcessed(id, decision) {
 // ─── Get game files ───────────────────────────────────────────────────────────
 
 function getGameFiles(slug) {
+  if (slug.includes('..') || slug.includes('/') || slug.includes('\\')) {
+    throw new Error(`Path traversal rejected in getGameFiles: slug=${slug}`);
+  }
   const dir = join(CONFIG.gamesDir, slug);
   if (!existsSync(dir)) return [];
   return readdirSync(dir).filter(f => f.endsWith('.html') || f.endsWith('.js'));
@@ -200,13 +203,26 @@ function getGameFiles(slug) {
 // ─── Read game file ───────────────────────────────────────────────────────────
 
 function readGameFile(slug, filename) {
-  const path = join(CONFIG.gamesDir, slug, filename);
+  const path = sanitizePath(slug, filename);
   if (!existsSync(path)) return null;
   return readFileSync(path, 'utf8');
 }
 
+function sanitizePath(slug, filename) {
+  // Reject path traversal sequences
+  if (slug.includes('..') || filename.includes('..') || slug.includes('/') || slug.includes('\\')) {
+    throw new Error(`Path traversal rejected: slug=${slug}, file=${filename}`);
+  }
+  const resolved = join(CONFIG.gamesDir, slug, filename);
+  // Ensure final path is within gamesDir (no traversal escape)
+  if (!resolved.startsWith(CONFIG.gamesDir + sep)) {
+    throw new Error(`Sandbox violation: ${resolved} outside ${CONFIG.gamesDir}`);
+  }
+  return resolved;
+}
+
 function writeGameFile(slug, filename, content) {
-  const path = join(CONFIG.gamesDir, slug, filename);
+  const path = sanitizePath(slug, filename);
   writeFileSync(path, content, 'utf8');
   info('Wrote file', { slug, file: filename, size: content.length });
 }

@@ -38,6 +38,34 @@ async function supabaseRequest(table, options = {}) {
   return { data, status: res.status };
 }
 
+// ── Sanitize AI reply (defense in depth — widget also escapes) ───────────────
+function sanitizeAiReply(text) {
+  if (!text) return null;
+  // Strip any HTML tags, then limit length
+  const stripped = text.replace(/<[^>]*>/g, '').trim();
+  return stripped.slice(0, 500);
+}
+
+// ── Rate limit check (in-memory, per-deployment-instance) ──────────────────
+const rateLimitMap = new Map(); // ipHash → [{ts, count}]
+
+function checkRateLimit(ipHash, maxPerHour = 10) {
+  const now = Date.now();
+  const window = []; // rolling 1-hour window
+  
+  if (rateLimitMap.has(ipHash)) {
+    const entries = rateLimitMap.get(ipHash);
+    // Remove entries older than 1 hour
+    const valid = entries.filter(e => now - e.ts < 3_600_000);
+    rateLimitMap.set(ipHash, valid);
+    if (valid.length >= maxPerHour) return false;
+    valid.push({ ts: now });
+  } else {
+    rateLimitMap.set(ipHash, [{ ts: now }]);
+  }
+  return true;
+}
+
 // ── Ollama AI reply ────────────────────────────────────────────────────────────
 async function generateAiReply(content, type, gameTitle) {
   const systemPrompt = `You are a friendly AI assistant for Autonomous Arcade (auotpnomous.arcade.optimous.ai).
@@ -119,7 +147,14 @@ export default async function handler(req, res) {
       } = req.body || {};
 
       if (!content && !rating) {
+        // Rate limit check (10 feedback/hr per IP hash)
+      if (!checkRateLimit(ipHash)) {
+        return res.status(429).json({ error: 'Too many submissions. Slow down!' });
+      }
+
+      if (!content && !rating) {
         return res.status(400).json({ error: 'content or rating required' });
+      }
       }
 
       if (!['comment', 'bug', 'suggestion', 'rating'].includes(type)) {
@@ -183,7 +218,7 @@ export default async function handler(req, res) {
       // Fire Ollama AI reply (non-blocking — doesn't delay response)
       if (newItem?.id && content) {
         generateAiReply(content, type, gameTitle).then(aiReply => {
-          if (aiReply) updateAiReply(newItem.id, aiReply);
+          if (aiReply) updateAiReply(newItem.id, sanitizeAiReply(aiReply));
         });
       }
 
