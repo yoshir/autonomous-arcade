@@ -18,7 +18,7 @@ const execAsync = promisify(exec);
 
 const SUPABASE_URL     = Deno.env.get('SUPABASE_URL')     ?? 'https://ildvhztonjaensqkmxsk.supabase.co';
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-const OLLAMA_BASE_URL  = Deno.env.get('OLLAMA_BASE_URL')  ?? 'http://localhost:11434';
+const OLLAMA_BASE_URL  = Deno.env.get('OLLAMA_BASE_URL')  ?? 'http://100.69.241.23:11434';
 const OLLAMA_MODEL    = Deno.env.get('OLLAMA_MODEL')      ?? 'gemma4:31b';
 const SLACK_CHANNEL   = Deno.env.get('SLACK_CHANNEL')      ?? 'C0AAX5Z85MG';
 
@@ -30,7 +30,9 @@ Owner rules:
 - Only respond to feedback, never ask follow-up questions
 - Never mention being an AI or reference internal systems
 - Keep replies under 2 sentences
-- If feedback is a bug report, be empathetic and apologize for the issue
+- Be warm, empathetic, and player-focused — the user is a real person
+- Never mention revenue, monetization, or business goals in AI replies
+- If feedback is a bug report, apologize sincerely and thank the player
 `;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
@@ -95,7 +97,7 @@ A player left feedback on "${gameTitle}":
 - Content: ${item.content || '(no text, rating only)'}
 - Rating: ${item.rating ? `${item.rating}/5` : 'none'}${rules}
 
-Write a short, friendly reply (1-2 sentences max) as if you're a game developer responding to a player. Be warm but concise. No markdown, no emoji.
+Write a short, friendly reply (1-2 sentences max) as if you're a game developer responding to a player. Be warm, human, and empathetic — this is a real person who took time to give feedback. No markdown, no emoji.
 
 Reply:`;
 }
