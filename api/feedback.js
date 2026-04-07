@@ -13,7 +13,7 @@ const SUPABASE_URL    = process.env.SUPABASE_URL || 'https://ildvhztonjaensqkmxs
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
 // ── Ollama config (Tailscale Funnel public URL) ───────────────────────────────
-const OLLAMA_BASE = process.env.OLLAMA_BASE_URL;
+const OLLAMA_BASE = process.env.OLLAMA_BASE_URL || 'https://ryans-macbook-pro-2.taila8cf65.ts.net';
 const OLLAMA_MODEL = 'gemma2:2b'; // fast model for real-time API responses (~2-5s)
 
 const CORS_HEADERS = {
@@ -68,7 +68,7 @@ function checkRateLimit(ipHash, maxPerHour = 10) {
 
 // ── Ollama AI reply ────────────────────────────────────────────────────────────
 async function generateAiReply(content, type, gameTitle) {
-  const systemPrompt = `You are a friendly AI assistant for Autonomous Arcade (auotpnomous.arcade.optimous.ai).
+  const systemPrompt = `You are a friendly AI assistant for Autonomous Arcade (autonomous.arcade.optimous.ai).
 Games are built by an AI that improves based on player feedback.
 Keep replies SHORT (1-2 sentences), warm, and helpful.
 Never mention being an AI model. Never be formal.`;
@@ -86,7 +86,7 @@ Never mention being an AI model. Never be formal.`;
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: OLLAMA_MODEL,
-        prompt: `<|system|>${systemPrompt}<|user|>${userPrompt}<|assistant|>`,
+        prompt: `${systemPrompt}\n\n${userPrompt}`,
         stream: false,
         options: { temperature: 0.7, num_predict: 150 }
       }),
@@ -94,7 +94,10 @@ Never mention being an AI model. Never be formal.`;
     });
 
     clearTimeout(timeout);
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.error('Ollama error:', response.status, await response.text());
+      return null;
+    }
     const result = await response.json();
     return result.response?.trim().slice(0, 500) || null;
   } catch (err) {
@@ -147,14 +150,7 @@ export default async function handler(req, res) {
       } = req.body || {};
 
       if (!content && !rating) {
-        // Rate limit check (10 feedback/hr per IP hash)
-      if (!checkRateLimit(ipHash)) {
-        return res.status(429).json({ error: 'Too many submissions. Slow down!' });
-      }
-
-      if (!content && !rating) {
         return res.status(400).json({ error: 'content or rating required' });
-      }
       }
 
       if (!['comment', 'bug', 'suggestion', 'rating'].includes(type)) {
@@ -168,6 +164,11 @@ export default async function handler(req, res) {
       const ip     = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'unknown';
       const ipHash = Buffer.from(ip).toString('base64').slice(0, 12);
       const ua     = (req.headers['user-agent'] || '').slice(0, 500);
+
+      // Rate limit check (10 feedback/hr per IP hash)
+      if (!checkRateLimit(ipHash)) {
+        return res.status(429).json({ error: 'Too many submissions. Slow down!' });
+      }
 
       // Look up game title if game_id provided
       let gameTitle = null;
