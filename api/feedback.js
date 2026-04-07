@@ -1,13 +1,20 @@
 // Universal Feedback API — autonomous-arcade edition
-// POST: submit feedback (comment, bug, suggestion, rating)
+// POST: submit feedback (comment, bug, suggestion, rating) + AI reply via local Ollama
 // GET:  list feedback
 // PATCH: heart/like a feedback item
 //
-// Writes to autonomous_arcade_feedback (UUID-based, proper schema)
-// Also writes to ops_feedback (legacy generic table, for backward compat)
+// AI Reply flow:
+//   Widget POSTs feedback → writes to Supabase → fires Ollama (non-blocking)
+//   GET polls for ai_reply field → returns when ready
+//
+// Ollama served via Tailscale Funnel: https://ryans-macbook-pro-2.taila8cf65.ts.net
 
 const SUPABASE_URL    = 'https://ildvhztonjaensqkmxsk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlsZHZoenRvbmphZW5zcWtteHNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUyMDc4OTMsImV4cCI6MjA2MDc4Mzg5M30.hYRsS9_ODZfz5i4PwNpp9I5w4gc6L9IBfBmPVkN7oXA';
+
+// ── Ollama config (Tailscale Funnel public URL) ───────────────────────────────
+const OLLAMA_BASE = 'https://ryans-macbook-pro-2.taila8cf65.ts.net';
+const OLLAMA_MODEL = 'gemma2:2b'; // fast model for real-time API responses (~2-5s)
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -31,6 +38,64 @@ async function supabaseRequest(table, options = {}) {
   return { data, status: res.status };
 }
 
+// ── Ollama AI reply ────────────────────────────────────────────────────────────
+async function generateAiReply(content, type, gameTitle) {
+  const systemPrompt = `You are a friendly AI assistant for Autonomous Arcade (auotpnomous.arcade.optimous.ai).
+Games are built by an AI that improves based on player feedback.
+Keep replies SHORT (1-2 sentences), warm, and helpful.
+Never mention being an AI model. Never be formal.`;
+
+  const userPrompt = gameTitle
+    ? `${type === 'bug' ? 'BUG REPORT' : type === 'suggestion' ? 'SUGGESTION' : type === 'rating' ? 'RATING' : 'FEEDBACK'} for "${gameTitle}":\n${content}`
+    : `${type === 'bug' ? 'BUG REPORT' : type === 'suggestion' ? 'SUGGESTION' : type === 'rating' ? 'RATING' : 'FEEDBACK'}:\n${content}`;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000);
+
+    const response = await fetch(`${OLLAMA_BASE}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        prompt: `<|system|>${systemPrompt}<|user|>${userPrompt}<|assistant|>`,
+        stream: false,
+        options: { temperature: 0.7, num_predict: 150 }
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+    if (!response.ok) return null;
+    const result = await response.json();
+    return result.response?.trim().slice(0, 500) || null;
+  } catch (err) {
+    console.error('Ollama error:', err.message);
+    return null;
+  }
+}
+
+// Update ai_reply in Supabase (fire-and-forget after feedback is written)
+async function updateAiReply(feedbackId, aiReply) {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/autonomous_arcade_feedback?id=eq.${feedbackId}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ai_reply: aiReply,
+        ai_reply_at: new Date().toISOString(),
+        ai_processed: true,
+      }),
+    });
+  } catch (err) {
+    console.error('Failed to update ai_reply:', err.message);
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     return res.status(200).json({});
@@ -41,13 +106,13 @@ export default async function handler(req, res) {
   const projectId = req.headers['x-project-id'] || req.query.project || 'autonomous-arcade';
 
   try {
-    // ── POST — submit feedback ────────────────────────────────────────────────
+    // ── POST — submit feedback + trigger AI reply ──────────────────────────────
     if (req.method === 'POST') {
       const {
         type     = 'comment',
         content,
         rating,
-        game_id,    // UUID of the game (autonomous-arcade-games table)
+        game_id,
         page_url,
         session_id,
         metadata  = {},
@@ -65,10 +130,18 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'rating must be 1-5' });
       }
 
-      // IP hash for spam detection (no PII)
       const ip     = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'unknown';
       const ipHash = Buffer.from(ip).toString('base64').slice(0, 12);
       const ua     = (req.headers['user-agent'] || '').slice(0, 500);
+
+      // Look up game title if game_id provided
+      let gameTitle = null;
+      if (game_id) {
+        const { data: games } = await supabaseRequest(
+          `autonomous_arcade_games?id=eq.${game_id}&select=title`
+        );
+        gameTitle = games?.[0]?.title || null;
+      }
 
       const row = {
         type,
@@ -80,15 +153,18 @@ export default async function handler(req, res) {
         ip_hash:      ipHash,
         user_agent:   ua,
         metadata,
+        ai_processed: false,
       };
 
-      // Write to new UUID-based table
+      // Write to UUID-based table
       const newResult = await supabaseRequest('autonomous_arcade_feedback', {
         method: 'POST',
         body: JSON.stringify(row),
       });
 
-      // Also write to legacy table for backward compat
+      const newItem = Array.isArray(newResult.data) ? newResult.data[0] : null;
+
+      // Also write to legacy table (non-fatal)
       await supabaseRequest('ops_feedback', {
         method: 'POST',
         body: JSON.stringify({
@@ -102,7 +178,14 @@ export default async function handler(req, res) {
           session_id: session_id || null,
           metadata,
         }),
-      }).catch(() => {}); // non-fatal if legacy table write fails
+      }).catch(() => {});
+
+      // Fire Ollama AI reply (non-blocking — doesn't delay response)
+      if (newItem?.id && content) {
+        generateAiReply(content, type, gameTitle).then(aiReply => {
+          if (aiReply) updateAiReply(newItem.id, aiReply);
+        });
+      }
 
       return res.status(201).json(newResult.data);
     }
@@ -113,8 +196,17 @@ export default async function handler(req, res) {
       const offset  = parseInt(req.query.offset) || 0;
       const type    = req.query.type;
       const gameId  = req.query.game_id;
+      const id      = req.query.id; // single item by ID (for polling)
 
-      // Use new UUID-based table when game_id is provided
+      // Single item by ID (used by widget polling)
+      if (id) {
+        const { data, status } = await supabaseRequest(
+          `autonomous_arcade_feedback?id=eq.${id}`
+        );
+        return res.status(status).json(data);
+      }
+
+      // Filtered by game_id
       if (gameId) {
         let path = `autonomous_arcade_feedback?game_id=eq.${gameId}&order=created_at.desc&limit=${limit}&offset=${offset}`;
         if (type) path += `&type=eq.${type}`;
@@ -122,19 +214,18 @@ export default async function handler(req, res) {
         return res.status(status).json(data);
       }
 
-      // Fall back to new table (all autonomous-arcade feedback)
+      // All feedback
       let path = `autonomous_arcade_feedback?order=created_at.desc&limit=${limit}&offset=${offset}`;
       if (type) path += `&type=eq.${type}`;
       const { data, status } = await supabaseRequest(path);
       return res.status(status).json(data);
     }
 
-    // ── PATCH — heart/like ─────────────────────────────────────────────────────
+    // ── PATCH — heart/like ────────────────────────────────────────────────────
     if (req.method === 'PATCH') {
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id required' });
 
-      // Try new table first, then legacy
       for (const table of ['autonomous_arcade_feedback', 'ops_feedback']) {
         const { data: existing } = await supabaseRequest(`${table}?id=eq.${id}&select=hearts`);
         if (existing && existing.length > 0) {
