@@ -167,6 +167,13 @@
     rating: 'Optional: tell us more about your rating...',
   };
 
+  // Debug event bus (for debug sidebar)
+  function emitDebug(type, data) {
+    try {
+      window.dispatchEvent(new CustomEvent('aa-debug', { detail: { type, data, ts: Date.now() } }));
+    } catch(e) {}
+  }
+
   // State
   let currentType = 'comment';
   let currentRating = 0;
@@ -191,12 +198,19 @@
   async function loadFeed(type) {
     const query = { limit: '30' };
     if (type && type !== 'all') query.type = type;
-    feedItems = await apiFetch('GET', { query });
-    renderFeed();
+    emitDebug('api-call', { method: 'GET', endpoint: API, params: query });
+    try {
+      feedItems = await apiFetch('GET', { query });
+      emitDebug('api-response', { method: 'GET', endpoint: API, count: feedItems?.length });
+      renderFeed();
+    } catch(e) {
+      emitDebug('error', { context: 'loadFeed', message: e.message });
+    }
   }
 
   async function submitFeedback(type, content, rating) {
-    return apiFetch('POST', {
+    emitDebug('feedback-submit', { type, hasContent: !!content, hasRating: !!rating });
+    const result = await apiFetch('POST', {
       body: {
         type,
         content: content || null,
@@ -206,6 +220,8 @@
         session_id: sessionId,
       }
     });
+    emitDebug('feedback-submitted', { type, resultId: result?.[0]?.id });
+    return result;
   }
 
   async function heartItem(id) {
@@ -219,22 +235,31 @@
     const MAX_POLLS = 30; // 30 × 2s = 60s max wait
     let polls = 0;
 
+    emitDebug('ai-poll-start', { itemId });
+
     pollInterval = setInterval(async () => {
       polls++;
-      const items = await apiFetch('GET', { query: { id: itemId, limit: 1 } });
-      const item = Array.isArray(items) ? items[0] : null;
+      try {
+        emitDebug('ai-poll-check', { itemId, poll: polls });
+        const items = await apiFetch('GET', { query: { id: itemId, limit: 1 } });
+        const item = Array.isArray(items) ? items[0] : null;
 
-      if (item?.ai_reply) {
-        clearInterval(pollInterval);
-        pollInterval = null;
-        pendingAiReplyId = null;
-        await loadFeed();
-      } else if (polls >= MAX_POLLS) {
-        // Timeout — just show the feed without AI reply
-        clearInterval(pollInterval);
-        pollInterval = null;
-        pendingAiReplyId = null;
-        await loadFeed();
+        if (item?.ai_reply) {
+          clearInterval(pollInterval);
+          pollInterval = null;
+          pendingAiReplyId = null;
+          emitDebug('ai-reply-received', { itemId, reply: item.ai_reply.slice(0, 80) });
+          await loadFeed();
+        } else if (polls >= MAX_POLLS) {
+          // Timeout — just show the feed without AI reply
+          clearInterval(pollInterval);
+          pollInterval = null;
+          pendingAiReplyId = null;
+          emitDebug('ai-poll-timeout', { itemId, polls });
+          await loadFeed();
+        }
+      } catch(e) {
+        emitDebug('error', { context: 'ai-poll', message: e.message });
       }
     }, 2000);
   }
