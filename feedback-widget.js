@@ -95,56 +95,79 @@
 
     /* Feed */
     .aafw-feed { display: flex; flex-direction: column; gap: 12px; }
+    /* Feed — compact LinkedIn density */
+    .aafw-feed { display: flex; flex-direction: column; gap: 8px; }
     .aafw-item {
-      background: ${colors.cardBg}; border: 1px solid ${colors.border}; border-radius: 12px;
-      padding: 14px 16px; transition: border-color 0.2s;
+      background: ${colors.cardBg}; border: 1px solid ${colors.border}; border-radius: 10px;
+      padding: 10px 14px; transition: border-color 0.2s;
     }
-    .aafw-item:hover { border-color: rgba(0,240,255,0.2); }
-    .aafw-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-    .aafw-item-type {
-      font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
-      padding: 2px 8px; border-radius: 6px;
-    }
-    .aafw-type-comment { background: rgba(0,240,255,0.1); color: ${colors.cyan}; }
-    .aafw-type-bug { background: rgba(255,60,60,0.1); color: #ff4444; }
-    .aafw-type-suggestion { background: rgba(100,255,100,0.1); color: #44cc44; }
-    .aafw-type-rating { background: rgba(255,200,0,0.1); color: #ffcc00; }
+    .aafw-item:hover { border-color: rgba(0,240,255,0.15); }
 
+    /* Single-line header: type-dot · time · [optional rating emoji] */
+    .aafw-item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
+    .aafw-item-type-dot {
+      display: inline-block; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+    }
+    .aafw-type-dot-comment { background: ${colors.cyan}; }
+    .aafw-type-dot-bug { background: #ff4444; }
+    .aafw-type-dot-suggestion { background: #44cc44; }
+    .aafw-type-dot-rating { background: #ffcc00; }
+    .aafw-item-type-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+      color: ${colors.muted};
+    }
     .aafw-item-time { font-size: 11px; color: ${colors.muted}; }
-    .aafw-item-content { color: ${colors.text}; font-size: 14px; line-height: 1.6; margin-bottom: 8px; }
-    .aafw-item-rating { font-size: 16px; margin-bottom: 4px; }
-    .aafw-item-footer { display: flex; align-items: center; gap: 12px; }
+    .aafw-item-sep { color: ${colors.border}; font-size: 11px; }
+    .aafw-item-rating { font-size: 13px; }
+
+    .aafw-item-content { color: ${colors.text}; font-size: 13px; line-height: 1.5; }
+    .aafw-item-footer { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
     .aafw-heart {
       background: none; border: none; color: ${colors.muted}; cursor: pointer;
-      font-size: 13px; display: flex; align-items: center; gap: 4px; transition: color 0.2s;
+      font-size: 12px; display: flex; align-items: center; gap: 3px; transition: color 0.2s;
+      padding: 2px 0;
     }
     .aafw-heart:hover { color: ${colors.accent}; }
     .aafw-heart.hearted { color: ${colors.accent}; }
 
-    .aafw-empty { text-align: center; color: ${colors.muted}; padding: 32px 0; font-size: 14px; }
-    .aafw-msg { padding: 12px 0; font-size: 14px; font-weight: 600; }
+    .aafw-empty { text-align: center; color: ${colors.muted}; padding: 24px 0; font-size: 13px; }
+    .aafw-msg { padding: 8px 0; font-size: 13px; font-weight: 600; }
     .aafw-msg.success { color: ${colors.cyan}; }
     .aafw-msg.error { color: #ff4444; }
     .aafw-page-url { font-size: 11px; color: ${colors.muted}; word-break: break-all; }
 
-    /* AI Reply */
+    /* AI Reply — chat bubble style */
     .aafw-ai-reply {
-      margin-top: 10px; padding: 10px 12px; border-radius: 8px;
-      background: rgba(0,240,255,0.05); border: 1px solid rgba(0,240,255,0.15);
+      margin-top: 8px; padding: 10px 12px; border-radius: 10px;
+      background: rgba(0,240,255,0.06); border: 1px solid rgba(0,240,255,0.12);
       font-size: 13px; line-height: 1.5; color: ${colors.text};
+      display: flex; gap: 10px; align-items: flex-start;
     }
-    .aafw-ai-badge {
-      display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: 1px;
-      text-transform: uppercase; padding: 2px 6px; border-radius: 4px; margin-bottom: 6px;
-      background: rgba(0,240,255,0.15); color: ${colors.cyan};
+    .aafw-ai-avatar {
+      width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, ${colors.cyan}, ${colors.accent});
+      display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;
     }
+    .aafw-ai-body { flex: 1; min-width: 0; }
+    .aafw-ai-name { font-size: 11px; font-weight: 700; color: ${colors.cyan}; margin-bottom: 4px; letter-spacing: 0.5px; }
+    .aafw-ai-text { color: ${colors.text}; }
     .aafw-ai-thinking {
-      margin-top: 10px; padding: 10px 12px; border-radius: 8px;
-      background: rgba(0,240,255,0.03); border: 1px solid rgba(0,240,255,0.08);
-      font-size: 12px; color: ${colors.muted}; font-style: italic;
+      margin-top: 8px; display: flex; gap: 10px; align-items: center;
+      padding: 10px 12px; border-radius: 10px;
+      background: rgba(0,240,255,0.04); border: 1px solid rgba(0,240,255,0.08);
+      font-size: 12px; color: ${colors.muted};
     }
     .aafw-ai-thinking-dots::after { content: ''; animation: aafw-dots 1.5s infinite; }
     @keyframes aafw-dots { 0%,20%{content:'.'} 40%{content:'..'} 60%,100%{content:'...'} }
+    .aafw-typing-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: ${colors.cyan}; flex-shrink: 0;
+      animation: aafw-typing-bounce 1.2s infinite;
+    }
+    .aafw-typing-dot:nth-child(2) { animation-delay: 0.15s; }
+    .aafw-typing-dot:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes aafw-typing-bounce {
+      0%,60%,100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-4px); opacity: 1; }
+    }
   `;
 
   // Helpers
@@ -159,9 +182,9 @@
   const ratingEmojis = ['😴','😐','🙂','😄','🤩'];
   function ratingStars(n) { return ratingEmojis.slice(0, n).join(''); }
 
-  const typeLabels = { comment: '💬 Comment', bug: '🐛 Bug', suggestion: '💡 Idea', rating: '⭐ Rating' };
+  const typeLabels = { comment: 'Comment', bug: 'Bug', suggestion: 'Idea', rating: 'Rating' };
   const placeholders = {
-    comment: 'Share your thoughts...',
+    comment: 'Ask Gemma anything about Autonomous Arcade...',
     bug: 'What went wrong? Steps to reproduce...',
     suggestion: 'What would make this better?',
     rating: 'Optional: tell us more about your rating...',
@@ -277,13 +300,14 @@
       document.head.appendChild(style);
     }
 
+    const tabEmojis = { comment: '💬', bug: '🐛', suggestion: '💡', rating: '⭐' };
     container.innerHTML = `
       <div class="aafw">
         <div class="aafw-tabs">
-          <button class="aafw-tab ${currentType === 'comment' ? 'active' : ''}" data-type="comment">💬 Comment</button>
-          <button class="aafw-tab ${currentType === 'bug' ? 'active' : ''}" data-type="bug">🐛 Bug</button>
-          <button class="aafw-tab ${currentType === 'suggestion' ? 'active' : ''}" data-type="suggestion">💡 Idea</button>
-          <button class="aafw-tab ${currentType === 'rating' ? 'active' : ''}" data-type="rating">⭐ Rate</button>
+          <button class="aafw-tab ${currentType === 'comment' ? 'active' : ''}" data-type="comment">${tabEmojis.comment} Chat</button>
+          <button class="aafw-tab ${currentType === 'bug' ? 'active' : ''}" data-type="bug">${tabEmojis.bug} Bug</button>
+          <button class="aafw-tab ${currentType === 'suggestion' ? 'active' : ''}" data-type="suggestion">${tabEmojis.suggestion} Idea</button>
+          <button class="aafw-tab ${currentType === 'rating' ? 'active' : ''}" data-type="rating">${tabEmojis.rating} Rate</button>
         </div>
 
         <div class="aafw-form">
@@ -293,7 +317,7 @@
             </div>
           ` : ''}
           <textarea class="aafw-input" id="aafw-input" placeholder="${placeholders[currentType]}" maxlength="2000"></textarea>
-          <button class="aafw-submit" id="aafw-submit">Send ${typeLabels[currentType].split(' ')[1]}</button>
+          <button class="aafw-submit" id="aafw-submit">Send to Gemma</button>
           <div class="aafw-msg" id="aafw-msg"></div>
         </div>
 
@@ -361,27 +385,34 @@
     if (!feed) return;
 
     if (!feedItems || feedItems.length === 0) {
-      feed.innerHTML = '<div class="aafw-empty">No feedback yet. Be the first!</div>';
+      feed.innerHTML = '<div class="aafw-empty">Nothing here yet — start a conversation with Gemma below! 👇</div>';
       return;
     }
 
     feed.innerHTML = feedItems.map(item => `
       <div class="aafw-item">
         <div class="aafw-item-header">
-          <span class="aafw-item-type aafw-type-${item.type}">${typeLabels[item.type] || item.type}</span>
+          <span class="aafw-item-type-dot aafw-type-dot-${item.type}"></span>
+          <span class="aafw-item-type-label">${typeLabels[item.type] || item.type}</span>
+          <span class="aafw-item-sep">·</span>
           <span class="aafw-item-time">${timeAgo(item.created_at)}</span>
+          ${item.rating ? `<span class="aafw-item-sep">·</span><span class="aafw-item-rating">${ratingStars(item.rating)}</span>` : ''}
         </div>
-        ${item.rating ? `<div class="aafw-item-rating">${ratingStars(item.rating)}</div>` : ''}
         ${item.content ? `<div class="aafw-item-content">${escapeHtml(item.content)}</div>` : ''}
         ${item.ai_reply ? `
           <div class="aafw-ai-reply">
-            <div class="aafw-ai-badge">AI Reply</div>
-            ${escapeHtml(item.ai_reply)}
+            <div class="aafw-ai-avatar">🤖</div>
+            <div class="aafw-ai-body">
+              <div class="aafw-ai-name">Gemma — AI</div>
+              <div class="aafw-ai-text">${escapeHtml(item.ai_reply)}</div>
+            </div>
           </div>
         ` : item.id === pendingAiReplyId ? `
-          <div class="aafw-ai-reply">
-            <div class="aafw-ai-badge">AI Reply</div>
-            <div class="aafw-ai-thinking">Getting your personalized reply<span class="aafw-ai-thinking-dots"></span></div>
+          <div class="aafw-ai-thinking">
+            <div class="aafw-typing-dot"></div>
+            <div class="aafw-typing-dot"></div>
+            <div class="aafw-typing-dot"></div>
+            <span>Gemma is thinking<span class="aafw-ai-thinking-dots"></span></span>
           </div>
         ` : ''}
         <div class="aafw-item-footer">
