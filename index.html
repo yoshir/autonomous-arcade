@@ -229,15 +229,13 @@ footer a:hover { color: #00f0ff; }
 /* Debug Sidebar */
 #aa-debug-sidebar {
   position: fixed;
-  bottom: 0;
+  top: 0;
   right: 0;
   width: 360px;
-  max-height: 50vh;
+  height: 100vh;
   background: #0a0a1f;
-  border: 1px solid rgba(0,240,255,0.2);
-  border-bottom: none;
-  border-right: none;
-  border-radius: 12px 0 0 0;
+  border-left: 1px solid rgba(0,240,255,0.2);
+  border-radius: 0;
   font-family: 'SF Mono', 'Fira Code', monospace;
   font-size: 11px;
   z-index: 99999;
@@ -246,27 +244,29 @@ footer a:hover { color: #00f0ff; }
   overflow: hidden;
 }
 #aa-debug-sidebar.collapsed {
-  max-height: 36px;
-  width: 160px;
+  width: 48px;
+  height: 48px;
+  border-radius: 0 0 0 12px;
+  border: 1px solid rgba(0,240,255,0.2);
+  border-right: none;
+  border-top: none;
+  background: rgba(0,240,255,0.1);
 }
 #aa-debug-sidebar.collapsed #aa-debug-body { display: none; }
 #aa-debug-sidebar.collapsed #aa-debug-gemma-btn { display: none; }
+#aa-debug-sidebar.collapsed #aa-debug-title { display: none; }
 
 /* Mobile: tab style */
 @media (max-width: 600px) {
   #aa-debug-sidebar {
     width: 80px;
-    max-height: 40px;
-    border-radius: 12px 12px 0 0;
-    border-right: 1px solid rgba(0,240,255,0.2);
-    border-bottom: none;
-    border-left: 1px solid rgba(0,240,255,0.2);
-    bottom: 0;
-    right: 0;
-  }
-  #aa-debug-sidebar.collapsed {
-    width: 80px;
-    max-height: 40px;
+    height: 48px;
+    border-radius: 0 0 0 12px;
+    border: 1px solid rgba(0,240,255,0.2);
+    border-right: none;
+    border-top: none;
+    background: rgba(0,240,255,0.1);
+    bottom: auto;
   }
   #aa-debug-sidebar:not(.collapsed) {
     position: fixed;
@@ -275,7 +275,7 @@ footer a:hover { color: #00f0ff; }
     right: 0;
     bottom: 0;
     width: 100%;
-    max-height: 100%;
+    height: 100%;
     border-radius: 0;
     z-index: 999999;
   }
@@ -289,11 +289,9 @@ footer a:hover { color: #00f0ff; }
   #aa-debug-title { display: none; }
   #aa-debug-toggle { display: block; }
   #aa-debug-sidebar.collapsed #aa-debug-toggle::before {
-    content: '⚡ Debug';
+    content: '⚡';
     color: #00f0ff;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 2px;
+    font-size: 16px;
   }
 }
 #aa-debug-header {
