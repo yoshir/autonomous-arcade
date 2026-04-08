@@ -330,11 +330,62 @@ footer a:hover { color: #00f0ff; }
 
 /* Mobile */
 @media (max-width: 600px) {
-  .logo { font-size: 26px; letter-spacing: 2px; }
-  .games-grid { grid-template-columns: 1fr; }
-  header { padding: 32px 16px 24px; }
-  .games-section, .activity-section, .feedback-section { padding-left: 16px; padding-right: 16px; }
+  /* Header */
+  header { padding: 24px 16px 20px; }
+  .logo { font-size: 22px; letter-spacing: 2px; }
+  .tagline { font-size: 11px; letter-spacing: 2px; }
+  .sub-tagline { font-size: 11px; }
+
+  /* Sections */
+  .games-section, .activity-section, .feedback-section {
+    padding-left: 16px; padding-right: 16px;
+  }
+  .games-section { padding-top: 32px; padding-bottom: 32px; }
+  .activity-section, .feedback-section { padding-top: 24px; padding-bottom: 24px; }
+
+  /* Section titles */
+  .section-title { font-size: 11px; letter-spacing: 3px; margin-bottom: 4px; }
+  .section-subtitle { font-size: 12px; margin-bottom: 16px; line-height: 1.4; }
+
+  /* Games grid — already 1 col, just tighten */
+  .games-grid { gap: 14px; }
+  .game-info { padding: 12px 14px 16px; }
+  .game-title { font-size: 16px; }
+  .game-desc { font-size: 12px; }
+
+  /* Activity log */
   .log-time { display: none; }
+  .activity-log { padding: 16px; max-height: 260px; }
+  .log-icon { font-size: 14px; }
+  .log-msg { font-size: 12px; line-height: 1.4; }
+
+  /* Stats bar */
+  .stats-bar { gap: 20px; padding-bottom: 32px; }
+  .stat-value { font-size: 22px; }
+  .stat-label { font-size: 10px; }
+
+  /* Feedback widget */
+  .aafw-tabs {
+    display: flex;
+    overflow-x: auto;
+    gap: 6px;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .aafw-tabs::-webkit-scrollbar { display: none; }
+  .aafw-tab { flex-shrink: 0; padding: 7px 12px; font-size: 11px; }
+  .aafw-input { font-size: 14px; min-height: 80px; }
+  .aafw-submit { width: 100%; padding: 12px; font-size: 14px; margin-top: 8px; }
+  .aafw-feed { gap: 6px; }
+  .aafw-item { padding: 8px 12px; }
+  .aafw-item-content { font-size: 13px; }
+
+  /* Ad slots */
+  .ad-slot { padding: 0 16px; margin-bottom: 24px; }
+
+  /* Footer */
+  footer { padding: 24px 16px; }
 }
 </style>
 </head>
