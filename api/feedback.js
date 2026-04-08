@@ -12,8 +12,9 @@
 const SUPABASE_URL    = process.env.SUPABASE_URL || 'https://ildvhztonjaensqkmxsk.supabase.co';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
-// ── Ollama config (Tailscale Funnel public URL) ───────────────────────────────
-const OLLAMA_BASE = process.env.OLLAMA_BASE_URL || 'https://ryans-macbook-pro-2.taila8cf65.ts.net';
+// ── Ollama config (Cloudflare Quick Tunnel — stable per session) ─────────────
+// TODO: replace with named Cloudflare Tunnel (gemma.optimous.ai) when DNS ready
+const OLLAMA_BASE = process.env.OLLAMA_BASE_URL || 'https://yesterday-subscriptions-innovative-orders.trycloudflare.com';
 const OLLAMA_MODEL = 'gemma2:2b'; // fast model for real-time API responses (~2-5s)
 
 const CORS_HEADERS = {
