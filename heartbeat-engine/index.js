@@ -36,6 +36,7 @@ const CONFIG = {
   },
   slack: {
     channelId: 'C0AAX5Z85MG', // #yosh-optimous-ops
+    arcadeChannelId: 'C0AQNBMPX0R', // #yosh-arcade
   },
   gamesDir: join(__dirname, '..', 'games'),
   businessGoalsPath: join(__dirname, '..', 'business-goals.md'),
@@ -100,14 +101,15 @@ async function postToSlack(text, channelOverride) {
     await execAsync(cmd, { timeout: 15_000 });
     info('Slack posted', { text: String(text).slice(0, 80) });
   } catch (e) {
-    if (e.message.includes('ENOENT')) throw new Error('clawdbot CLI not found');
-    throw e;
+    // Non-fatal: Slack posting failure should not crash the heartbeat cycle
+    warn('Slack post failed', { error: e.message });
   }
 }
 
 // ─── Ollama / Gemma 4 ─────────────────────────────────────────────────────────
 
 async function askGemma(prompt) {
+  info(`[GEMMA PING] calling ${CONFIG.ollama.baseUrl} model=${CONFIG.ollama.model}`);
   const res = await fetch(`${CONFIG.ollama.baseUrl}/api/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -400,6 +402,12 @@ async function runHeartbeatCycle() {
     const lines = changes.map(c => `• *${c.game}*: ${c.summary}`).join('\n');
     await postToSlack(
 `*Autonomous Arcade — Heartbeat #${cycleNum}*\n${lines}\n_Changelogs posted to activity feed_`
+    );
+    // Also ping #yosh-arcade so the arcade agent can tweet the changes
+    const tweetLines = changes.map(c => `• ${c.game}: ${c.summary}`).join('\n');
+    await postToSlack(
+`New changes from Heartbeat #${cycleNum}:\n${tweetLines}`,
+      CONFIG.slack.arcadeChannelId
     );
   } else {
     await postToSlack(`*Autonomous Arcade — Heartbeat #${cycleNum}* reviewed ${feedback.length} feedback items — no changes needed this cycle.`);

@@ -267,6 +267,17 @@ footer a:hover { color: #00f0ff; }
   letter-spacing: 2px;
   text-transform: uppercase;
 }
+#aa-debug-gemma-btn {
+  background: rgba(0,240,255,0.15);
+  border: 1px solid rgba(0,240,255,0.3);
+  color: #0ff;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  margin-right: auto;
+}
+#aa-debug-gemma-btn:hover { background: rgba(0,240,255,0.25); }
 #aa-debug-toggle {
   color: #445;
   font-size: 14px;
@@ -322,6 +333,8 @@ footer a:hover { color: #00f0ff; }
 [data-type="ai-poll-check"] .debug-badge { background: rgba(255,170,0,0.15); color: #ffaa00; }
 [data-type="ai-reply-received"] .debug-badge { background: rgba(0,255,136,0.15); color: #00ff88; }
 [data-type="ai-poll-timeout"] .debug-badge { background: rgba(255,68,68,0.15); color: #ff4444; }
+[data-type="gemma-test"] .debug-badge { background: rgba(0,240,255,0.15); color: #0ff; }
+[data-type="gemma-test"] { border-left-color: #0ff; }
 [data-type="heartbeat"] .debug-badge { background: rgba(168,85,247,0.15); color: #a855f7; }
 [data-type="slack"] .debug-badge { background: rgba(234,179,8,0.15); color: #eab308; }
 [data-type="error"] .debug-badge { background: rgba(255,68,68,0.15); color: #ff4444; }
@@ -586,7 +599,8 @@ footer a:hover { color: #00f0ff; }
 <!-- Debug Sidebar -->
 <div id="aa-debug-sidebar">
   <div id="aa-debug-header" onclick="document.getElementById('aa-debug-sidebar').classList.toggle('collapsed'); document.getElementById('aa-debug-body').style.display = document.getElementById('aa-debug-sidebar').classList.contains('collapsed') ? 'none' : 'block';">
-    <div id="aa-debug-title">⚡ Debug Log</div>
+    <div id="aa-debug-title">⚡ Debug</div>
+    <button id="aa-debug-gemma-btn" onclick="window.aaTestGemma?.()">🧠 Test Gemma</button>
     <div id="aa-debug-toggle">▾</div>
   </div>
   <div id="aa-debug-body"></div>
@@ -616,6 +630,7 @@ footer a:hover { color: #00f0ff; }
       case 'ai-poll-timeout': return `${data.polls} polls, no reply`;
       case 'heartbeat': return data.message || JSON.stringify(data).slice(0,60);
       case 'slack': return data.message || JSON.stringify(data).slice(0,60);
+      case 'gemma-test': return data.message;
       case 'error': return data.context + ': ' + data.message;
       default: return JSON.stringify(data).slice(0, 80);
     }
@@ -643,6 +658,44 @@ footer a:hover { color: #00f0ff; }
 
   // Signal that debug is ready
   window.aaDebugReady = true;
+
+  // Test Gemma button — pings Ollama via a lightweight test
+  window.aaTestGemma = async function() {
+    const btn = document.getElementById('aa-debug-gemma-btn');
+    btn.textContent = '⏳...';
+    btn.disabled = true;
+
+    const emit = (type, data) => window.dispatchEvent(new CustomEvent('aa-debug', { detail: { type, data, ts: Date.now() } }));
+
+    try {
+      emit('gemma-test', { message: 'Pinging Ollama...' });
+      const start = Date.now();
+      // Lightweight test: just send a minimal prompt
+      const res = await fetch('https://yesterday-subscriptions-innovative-orders.trycloudflare.com/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'gemma2:2b',
+          prompt: 'reply with just "pong"',
+          stream: false,
+          options: { temperature: 0.7, num_predict: 5 },
+        }),
+      });
+      const latency = Date.now() - start;
+      if (res.ok) {
+        const data = await res.json();
+        emit('gemma-test', { message: `✅ Gemma responded: "${data.response?.trim()}" (${latency}ms)` });
+      } else {
+        const err = await res.text();
+        emit('gemma-test', { message: `❌ Gemma error ${res.status}: ${err.slice(0, 80)}` });
+      }
+    } catch(e) {
+      emit('gemma-test', { message: `❌ Gemma unreachable: ${e.message}` });
+    }
+
+    btn.textContent = '🧠 Test Gemma';
+    btn.disabled = false;
+  };
 })();
 
 // Heartbeat activity poller — watches for new AI changes

@@ -18,9 +18,10 @@ const execAsync = promisify(exec);
 
 const SUPABASE_URL     = Deno.env.get('SUPABASE_URL')     ?? 'https://ildvhztonjaensqkmxsk.supabase.co';
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-const OLLAMA_BASE_URL  = Deno.env.get('OLLAMA_BASE_URL')  ?? 'http://100.69.241.23:11434';
-const OLLAMA_MODEL    = Deno.env.get('OLLAMA_MODEL')      ?? 'gemma4:31b';
+const OLLAMA_BASE_URL  = Deno.env.get('OLLAMA_BASE_URL')  ?? 'https://yesterday-subscriptions-innovative-orders.trycloudflare.com';
+const OLLAMA_MODEL    = Deno.env.get('OLLAMA_MODEL')      ?? 'gemma2:2b';
 const SLACK_CHANNEL   = Deno.env.get('SLACK_CHANNEL')      ?? 'C0AAX5Z85MG';
+const ARCADE_ALERT_CHANNEL = 'C0AQNBMPX0R';
 
 // ─── Owner Rules ────────────────────────────────────────────────────────────────
 // These are injected into every Gemma prompt. Edit here to change AI behavior.
@@ -41,11 +42,11 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
 
 // ─── Slack relay via clawdbot ──────────────────────────────────────────────────
 
-async function postToSlack(text) {
+async function postToSlack(text, channel = SLACK_CHANNEL) {
   const cmd = [
     'clawdbot', 'message', 'send',
     '--channel', 'slack',
-    '--target', `channel:${SLACK_CHANNEL}`,
+    '--target', `channel:${channel}`,
     '--message', JSON.stringify(text),
   ].join(' ');
 
@@ -53,10 +54,22 @@ async function postToSlack(text) {
     await execAsync(cmd, { timeout: 15_000 });
   } catch (e) {
     if (e.message.includes('ENOENT')) {
-      throw new Error('clawdbot CLI not found in PATH');
+      console.warn('clawdbot CLI not found, skipping Slack post:', e.message);
+      return; // non-fatal
     }
-    throw e;
+    console.warn('Slack post failed:', e.message);
+    // non-fatal — don't crash the whole function
   }
+}
+
+async function pingOpenClaw(error: string, itemId: string, itemType: string, content: string | null) {
+  const msg = `:warning: *Autonomous Arcade — Ollama down*
+Feedback ID: \`${itemId}\`
+Type: ${itemType}
+Content: ${content || '(rating only)'}
+Error: ${error}
+OpenClaw needs to investigate Gemma/Ollama.`;
+  await postToSlack(msg, ARCADE_ALERT_CHANNEL);
 }
 
 // ─── Ollama / Gemma ───────────────────────────────────────────────────────────
@@ -161,7 +174,20 @@ Deno.serve(async (req) => {
     }
 
     const prompt = buildPrompt(item);
-    const reply = await askGemma(prompt);
+    let reply: string;
+    let ollamaFailed = false;
+
+    try {
+      reply = await askGemma(prompt);
+    } catch (ollamaErr) {
+      // Ollama down — acknowledge to user immediately, ping OpenClaw, move on
+      console.error(`Ollama failed for ${item.id}:`, ollamaErr.message);
+      await pingOpenClaw(ollamaErr.message, item.id, item.type, item.content);
+      await markProcessed(item.id, 'Thanks for the feedback!');
+      return new Response(JSON.stringify({ ok: true, ollamaFailed: true }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
     const gameTitle = item.game?.title || item.game?.slug || item.page_url || 'game';
     const typeIcon  = { comment: '💬', bug: '🐛', suggestion: '💡', rating: '⭐' }[item.type] || '💬';
@@ -186,7 +212,10 @@ _via pg_net + Gemma · <${item.page_url || 'link'}|source>_`;
     });
   } catch (err) {
     console.error(`Error processing ${item.id}:`, err);
-
+    // Still acknowledge so widget stops polling
+    try {
+      await markProcessed(item.id, 'Thanks for the feedback!');
+    } catch (_) {}
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
