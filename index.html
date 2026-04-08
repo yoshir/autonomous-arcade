@@ -249,6 +249,53 @@ footer a:hover { color: #00f0ff; }
   max-height: 36px;
   width: 160px;
 }
+#aa-debug-sidebar.collapsed #aa-debug-body { display: none; }
+#aa-debug-sidebar.collapsed #aa-debug-gemma-btn { display: none; }
+
+/* Mobile: tab style */
+@media (max-width: 600px) {
+  #aa-debug-sidebar {
+    width: 80px;
+    max-height: 40px;
+    border-radius: 12px 12px 0 0;
+    border-right: 1px solid rgba(0,240,255,0.2);
+    border-bottom: none;
+    border-left: 1px solid rgba(0,240,255,0.2);
+    bottom: 0;
+    right: 0;
+  }
+  #aa-debug-sidebar.collapsed {
+    width: 80px;
+    max-height: 40px;
+  }
+  #aa-debug-sidebar:not(.collapsed) {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-height: 100%;
+    border-radius: 0;
+    z-index: 999999;
+  }
+  #aa-debug-sidebar:not(.collapsed) #aa-debug-body {
+    display: block;
+    flex: 1;
+  }
+  #aa-debug-sidebar:not(.collapsed) #aa-debug-gemma-btn {
+    display: inline-block;
+  }
+  #aa-debug-title { display: none; }
+  #aa-debug-toggle { display: block; }
+  #aa-debug-sidebar.collapsed #aa-debug-toggle::before {
+    content: '⚡ Debug';
+    color: #00f0ff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+  }
+}
 #aa-debug-header {
   display: flex;
   align-items: center;
