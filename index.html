@@ -231,78 +231,36 @@ footer a:hover { color: #00f0ff; }
   position: fixed;
   top: 0;
   right: 0;
-  width: 360px;
+  width: 0;
   height: 100vh;
   background: #0a0a1f;
   border-left: 1px solid rgba(0,240,255,0.2);
-  border-radius: 0;
   font-family: 'SF Mono', 'Fira Code', monospace;
   font-size: 11px;
   z-index: 99999;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto 1fr;
   overflow: hidden;
+  transition: width 0.2s ease;
+}
+#aa-debug-sidebar:not(.collapsed) {
+  width: 360px;
+  border-left: 1px solid rgba(0,240,255,0.2);
 }
 #aa-debug-sidebar.collapsed {
-  width: 48px;
-  height: 48px;
-  border-radius: 0 0 0 12px;
-  border: 1px solid rgba(0,240,255,0.2);
-  border-right: none;
-  border-top: none;
-  background: rgba(0,240,255,0.1);
-}
-#aa-debug-sidebar.collapsed #aa-debug-body { display: none; }
-#aa-debug-sidebar.collapsed #aa-debug-gemma-btn { display: none; }
-#aa-debug-sidebar.collapsed #aa-debug-title { display: none; }
-
-/* Mobile: tab style */
-@media (max-width: 600px) {
-  #aa-debug-sidebar {
-    width: 80px;
-    height: 48px;
-    border-radius: 0 0 0 12px;
-    border: 1px solid rgba(0,240,255,0.2);
-    border-right: none;
-    border-top: none;
-    background: rgba(0,240,255,0.1);
-    bottom: auto;
-  }
-  #aa-debug-sidebar:not(.collapsed) {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100%;
-    height: 100%;
-    border-radius: 0;
-    z-index: 999999;
-  }
-  #aa-debug-sidebar:not(.collapsed) #aa-debug-body {
-    display: block;
-    flex: 1;
-  }
-  #aa-debug-sidebar:not(.collapsed) #aa-debug-gemma-btn {
-    display: inline-block;
-  }
-  #aa-debug-title { display: none; }
-  #aa-debug-toggle { display: block; }
-  #aa-debug-sidebar.collapsed #aa-debug-toggle::before {
-    content: '⚡';
-    color: #00f0ff;
-    font-size: 16px;
-  }
+  width: 0;
+  border: none;
 }
 #aa-debug-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
   padding: 8px 12px;
   background: rgba(0,240,255,0.08);
   border-bottom: 1px solid rgba(0,240,255,0.1);
   cursor: pointer;
   user-select: none;
+  overflow: hidden;
 }
 #aa-debug-header:hover { background: rgba(0,240,255,0.12); }
 #aa-debug-title {
@@ -311,6 +269,7 @@ footer a:hover { color: #00f0ff; }
   font-size: 11px;
   letter-spacing: 2px;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 #aa-debug-gemma-btn {
   background: rgba(0,240,255,0.15);
@@ -320,21 +279,60 @@ footer a:hover { color: #00f0ff; }
   padding: 3px 8px;
   font-size: 11px;
   cursor: pointer;
-  margin-right: auto;
+  white-space: nowrap;
 }
 #aa-debug-gemma-btn:hover { background: rgba(0,240,255,0.25); }
 #aa-debug-toggle {
+  margin-left: auto;
   color: #445;
   font-size: 14px;
   line-height: 1;
 }
+#aa-debug-sidebar.collapsed #aa-debug-header { padding: 8px; justify-content: center; }
+#aa-debug-sidebar.collapsed #aa-debug-gemma-btn,
+#aa-debug-sidebar.collapsed #aa-debug-title { display: none; }
+#aa-debug-toggle {
+  margin-left: auto;
+  color: #445;
+  font-size: 14px;
+  line-height: 1;
+}
+#aa-debug-sidebar.collapsed #aa-debug-toggle { display: block; margin: 0; }
+#aa-debug-sidebar:not(.collapsed) #aa-debug-toggle { display: block; }
 #aa-debug-body {
-  flex: 1;
   overflow-y: auto;
   padding: 8px;
 }
 #aa-debug-body::-webkit-scrollbar { width: 3px; }
 #aa-debug-body::-webkit-scrollbar-thumb { background: rgba(0,240,255,0.2); }
+
+/* Mobile: tab style */
+@media (max-width: 600px) {
+  #aa-debug-sidebar {
+    width: 0;
+    height: 48px;
+    top: auto;
+    bottom: 0;
+    right: 0;
+    grid-template-rows: 1fr;
+    grid-template-columns: 1fr;
+  }
+  #aa-debug-sidebar:not(.collapsed) {
+    width: 100%;
+    height: 100vh;
+  }
+  #aa-debug-sidebar.collapsed {
+    width: 0;
+    height: 48px;
+  }
+  #aa-debug-title { display: none; }
+  #aa-debug-toggle { display: block; }
+  #aa-debug-sidebar:not(.collapsed) #aa-debug-title { display: block; }
+  #aa-debug-sidebar:not(.collapsed) #aa-debug-gemma-btn { display: inline-block; }
+  #aa-debug-header {
+    padding: 8px 12px;
+  }
+}
 .debug-entry {
   display: flex;
   gap: 8px;
@@ -643,9 +641,9 @@ footer a:hover { color: #00f0ff; }
 
 <!-- Debug Sidebar -->
 <div id="aa-debug-sidebar">
-  <div id="aa-debug-header" onclick="document.getElementById('aa-debug-sidebar').classList.toggle('collapsed'); document.getElementById('aa-debug-body').style.display = document.getElementById('aa-debug-sidebar').classList.contains('collapsed') ? 'none' : 'block';">
+  <div id="aa-debug-header" onclick="document.getElementById('aa-debug-sidebar').classList.toggle('collapsed');">
     <div id="aa-debug-title">⚡ Debug</div>
-    <button id="aa-debug-gemma-btn" onclick="window.aaTestGemma?.()">🧠 Test Gemma</button>
+    <button id="aa-debug-gemma-btn" onclick="event.stopPropagation(); window.aaTestGemma?.()">🧠 Test Gemma</button>
     <div id="aa-debug-toggle">▾</div>
   </div>
   <div id="aa-debug-body"></div>
