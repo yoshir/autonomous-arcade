@@ -108,21 +108,20 @@ function buildPrompt(
 
   let prompt = `You are the AI curator for Autonomous Arcade — a site that publishes AI-built browser games every 2 hours.`;
 
-  // Add conversation history for threaded replies
+  // Add full conversation history for game threads
   if (conversationHistory && conversationHistory.length > 0) {
-    prompt += `\n\nThis is a reply in an ongoing conversation. Previous messages:\n`;
+    prompt += `\n\nYou are having a conversation about "${gameTitle}". This player has been giving feedback over time:\n`;
     for (const msg of conversationHistory) {
-      const label = msg.role === 'player' ? 'Player' : 'Gemma (AI)';
+      const label = msg.role === 'player' ? 'Player' : 'Gemma';
       prompt += `${label}: ${msg.content}\n`;
     }
-    prompt += `\nThe player is continuing the conversation with a new ${typeLabel}.\n`;
+    prompt += `\nPlayer's new ${typeLabel}: ${item.content || '(no text, rating only)'}${rules}\n`;
   } else {
     prompt += `\n\nA player left feedback on "${gameTitle}":\n- Type: ${typeLabel}\n`;
+    prompt += `- Content: ${item.content || '(no text, rating only)'}\n- Rating: ${item.rating ? `${item.rating}/5` : 'none'}${rules}\n`;
   }
 
-  prompt += `- Content: ${item.content || '(no text, rating only)'}\n- Rating: ${item.rating ? `${item.rating}/5` : 'none'}${rules}
-
-Write a short, friendly reply (1-2 sentences max) as if you're a game developer responding to a player. Be warm, human, and empathetic — this is a real person who took time to give feedback. No markdown, no emoji.
+  prompt += `\nWrite a short, friendly reply (1-2 sentences max) as if you're a game developer responding to a player. Be warm, human, and empathetic — this is a real person who took time to give feedback. No markdown, no emoji.
 
 Reply:`;
 
@@ -190,14 +189,26 @@ Deno.serve(async (req) => {
 
     // Build conversation history for threaded replies
     let conversationHistory: Array<{ role: 'player' | 'ai'; content: string }> = [];
-    if (item.parent_id) {
-      // Fetch up to 6 prior messages in the thread (parent + 2 generations)
+    if (item.game_id) {
+      // Fetch game title for prompt context
+      if (!item.game) {
+        const { data: gameRow } = await supabase
+          .from('autonomous_arcade_games')
+          .select('id, slug, title')
+          .eq('id', item.game_id)
+          .single();
+        if (gameRow) item.game = gameRow;
+      }
+
+      // Fetch all prior messages for this game (one thread per game)
+      // Limit to last 30 messages to stay within Gemma's context window
       const { data: thread } = await supabase
         .from('autonomous_arcade_feedback')
-        .select('id, content, ai_reply, parent_id, created_at')
-        .or(`id.eq.${item.parent_id},parent_id.eq.${item.parent_id}`)
+        .select('id, content, ai_reply, created_at')
+        .eq('game_id', item.game_id)
+        .eq('ai_processed', true)
         .order('created_at', { ascending: true })
-        .limit(6);
+        .limit(30);
 
       if (thread) {
         for (const msg of thread) {
@@ -209,7 +220,7 @@ Deno.serve(async (req) => {
           }
         }
       }
-      console.log(`Thread context: ${conversationHistory.length} prior messages for ${item.id}`);
+      console.log(`Game ${item.game_id} context: ${conversationHistory.length} prior messages for ${item.id}`);
     }
 
     const prompt = buildPrompt(item, conversationHistory);
