@@ -324,7 +324,7 @@
           <div class="aachat-header-avatar">🤖</div>
           <div class="aachat-header-info">
             <div class="aachat-header-name">Gemma AI</div>
-            <div class="aachat-header-sub">Powered by Gemma 4 · Free</div>
+            <div class="aachat-header-sub">Powered by Gemma · Free & Private</div>
           </div>
           <button class="aachat-header-close" id="aachat-close">✕</button>
         </div>
@@ -334,7 +334,7 @@
           ${typingHtml}
         </div>
 
-        <div class="aachat-gen-notice">🤖 Gemma 4 — 100% free, runs locally on Ryan's Mac</div>
+        <div class="aachat-gen-notice">🤖 Gemma AI — 100% free, runs on Ryan's Mac</div>
 
         <div class="aachat-input-bar">
           <textarea

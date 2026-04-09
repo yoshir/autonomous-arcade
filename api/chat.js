@@ -4,7 +4,7 @@
 const SUPABASE_URL    = process.env.SUPABASE_URL || 'https://ildvhztonjaensqkmxsk.supabase.co';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'https://gemma1.optymi.com';
-const OLLAMA_CHAT_MODEL = 'gemma4:31b';
+const OLLAMA_CHAT_MODEL = 'gemma2:2b';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
