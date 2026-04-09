@@ -176,6 +176,55 @@ async function fetchNewFeedback() {
   return data || [];
 }
 
+// ─── Game feedback summary ───────────────────────────────────────────────────
+
+async function upsertGameSummary(gameId, summary, feedbackCount) {
+  const { error } = await supabase
+    .from('autonomous_arcade_game_summaries')
+    .upsert({
+      game_id: gameId,
+      summary,
+      feedback_count: feedbackCount,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'game_id' });
+
+  if (error) warn('Failed to upsert game summary', { error: error.message, gameId });
+  else info(`Game summary updated for ${gameId}: ${summary.slice(0, 80)}...`);
+}
+
+async function generateGameSummaries(feedbackByGame) {
+  // Build a summary per game from all feedback in this cycle
+  for (const [gameId, items] of Object.entries(feedbackByGame)) {
+    const game = items[0]?.game;
+    const gameTitle = game?.title || game?.slug || 'Unknown game';
+
+    const feedbackList = items
+      .map((item, i) => `${i + 1}. [${item.type}] ${item.content || '(rating only)'}`)
+      .join('\n');
+
+    const prompt = `You are the AI curator for Autonomous Arcade. Summarize player feedback for "${gameTitle}" into 2-3 clear bullet points.
+
+Feedback from this cycle:
+${feedbackList}
+
+Format your response exactly as:
+Bugs: • ...
+Suggestions: • ...
+Sentiment: positive/neutral/mixed
+
+Only mention things that are actually in the feedback above. Be specific — name specific bugs, features, or patterns.`;
+
+    let summary = 'No feedback to summarize.';
+    try {
+      summary = await askGemma(prompt);
+    } catch (e) {
+      warn('Failed to generate summary for game', { gameId, error: e.message });
+    }
+
+    await upsertGameSummary(gameId, summary, items.length);
+  }
+}
+
 // ─── Mark feedback processed ──────────────────────────────────────────────────
 
 async function markProcessed(id, decision) {
@@ -336,6 +385,15 @@ async function runHeartbeatCycle() {
 
   info(`Found ${feedback.length} new feedback items`);
 
+  // Group feedback by game for summary generation
+  const feedbackByGame = {};
+  for (const item of feedback) {
+    if (item.game?.id) {
+      if (!feedbackByGame[item.game.id]) feedbackByGame[item.game.id] = [];
+      feedbackByGame[item.game.id].push(item);
+    }
+  }
+
   const changes = [];
   let changesMade = 0;
 
@@ -411,6 +469,11 @@ async function runHeartbeatCycle() {
     );
   } else {
     await postToSlack(`*Autonomous Arcade — Heartbeat #${cycleNum}* reviewed ${feedback.length} feedback items — no changes needed this cycle.`);
+  }
+
+  // Generate summaries per game
+  if (Object.keys(feedbackByGame).length > 0) {
+    await generateGameSummaries(feedbackByGame);
   }
 
   info(`Heartbeat #${cycleNum} done`, { changes: changes.length, feedback: feedback.length });
