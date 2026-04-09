@@ -164,7 +164,7 @@ async function fetchNewFeedback() {
   const { data, error } = await supabase
     .from('autonomous_arcade_feedback')
     .select(`
-      id, type, content, rating, page_url, session_id, created_at,
+      id, type, content, rating, page_url, session_id, created_at, parent_id,
       game:autonomous_arcade_games!game_id ( id, slug, title )
     `)
     .eq('ai_processed', false)

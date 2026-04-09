@@ -148,6 +148,7 @@ export default async function handler(req, res) {
         page_url,
         session_id,
         metadata  = {},
+        parent_id = null,
       } = req.body || {};
 
       if (!content && !rating) {
@@ -190,6 +191,7 @@ export default async function handler(req, res) {
         ip_hash:      ipHash,
         user_agent:   ua,
         metadata,
+        parent_id:    parent_id || null,
         ai_processed: false,
       };
 
