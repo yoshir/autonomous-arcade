@@ -282,12 +282,6 @@ footer a:hover { color: #00f0ff; }
   white-space: nowrap;
 }
 #aa-debug-gemma-btn:hover { background: rgba(0,240,255,0.25); }
-#aa-debug-toggle {
-  margin-left: auto;
-  color: #445;
-  font-size: 14px;
-  line-height: 1;
-}
 #aa-debug-sidebar.collapsed #aa-debug-header { padding: 8px; justify-content: center; }
 #aa-debug-sidebar.collapsed #aa-debug-gemma-btn,
 #aa-debug-sidebar.collapsed #aa-debug-title { display: none; }
@@ -651,6 +645,8 @@ footer a:hover { color: #00f0ff; }
 
 <script>
 (function() {
+  const GEMA_URL = 'https://gemma1.optymi.com';
+
   const body = document.getElementById('aa-debug-body');
   const sidebar = document.getElementById('aa-debug-sidebar');
   const MAX_ENTRIES = 80;
@@ -714,7 +710,7 @@ footer a:hover { color: #00f0ff; }
       emit('gemma-test', { message: 'Pinging Ollama...' });
       const start = Date.now();
       // Lightweight test: just send a minimal prompt
-      const res = await fetch('https://gemma1.optymi.com/api/generate', {
+      const res = await fetch(`${GEMA_URL}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
