@@ -242,6 +242,59 @@
     .aafw-action:hover { color: ${colors.text}; }
     .aafw-action.hearted { color: ${colors.accent}; }
 
+    /* ── Inline reply form ──────────────────────────────────────────── */
+    .aafw-reply-form {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+      margin-top: 10px;
+      padding: 10px;
+      background: rgba(255,255,255,0.02);
+      border-radius: 8px;
+      border: 1px solid ${colors.border};
+    }
+    .aafw-reply-input {
+      flex: 1;
+      background: ${colors.inputBg};
+      border: 1px solid ${colors.inputBorder};
+      border-radius: 6px;
+      padding: 8px 10px;
+      color: ${colors.text};
+      font-size: 13px;
+      font-family: inherit;
+      resize: none;
+      min-height: 38px;
+      max-height: 80px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .aafw-reply-input::placeholder { color: ${colors.muted}; }
+    .aafw-reply-input:focus { border-color: ${colors.cyan}; }
+    .aafw-reply-send {
+      background: linear-gradient(135deg, ${colors.accent}, ${colors.accentHover});
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .aafw-reply-send:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(255,0,170,0.25); }
+    .aafw-reply-send:disabled { opacity: 0.3; cursor: default; transform: none; }
+    .aafw-reply-cancel {
+      background: none;
+      border: 1px solid ${colors.border};
+      color: ${colors.muted};
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .aafw-reply-cancel:hover { color: ${colors.text}; border-color: ${colors.muted}; }
+
     /* ── AI reply — YouTube comment style ────────────────────────── */
     .aafw-ai-reply {
       margin-top: 8px;
@@ -360,6 +413,7 @@
   let pendingAiReplyId = null;
   let pollInterval = null;
   let isLoading = false;
+  let replyingTo = null; // ID of the item being replied to
 
   // API calls
   async function apiFetch(method, params = {}) {
@@ -387,8 +441,8 @@
     }
   }
 
-  async function submitFeedback(type, content, rating) {
-    emitDebug('feedback-submit', { type, hasContent: !!content, hasRating: !!rating });
+  async function submitFeedback(type, content, rating, parentId = null) {
+    emitDebug('feedback-submit', { type, hasContent: !!content, hasRating: !!rating, parentId });
     const result = await apiFetch('POST', {
       body: {
         type,
@@ -397,6 +451,7 @@
         game_id: GAME_ID || null,
         page_url: location.href,
         session_id: sessionId,
+        parent_id: parentId || null,
       }
     });
     emitDebug('feedback-submitted', { type, resultId: result?.[0]?.id });
@@ -619,7 +674,17 @@
               <button class="aafw-action" onclick="window.aaShareFeedback?.('${item.id}')">
                 🔗 Share
               </button>
+              <button class="aafw-action" data-reply="${item.id}">
+                💬 Reply
+              </button>
             </div>
+            ${replyingTo === item.id ? `
+              <div class="aafw-reply-form">
+                <textarea class="aafw-reply-input" id="aafw-reply-input-${item.id.slice(0,8)}" placeholder="Reply to this thread..." rows="1"></textarea>
+                <button class="aafw-reply-cancel" data-reply-cancel="${item.id}">Cancel</button>
+                <button class="aafw-reply-send" data-reply-send="${item.id}">Send</button>
+              </div>
+            ` : ''}
           </div>
         </div>
       `;
@@ -634,6 +699,54 @@
         localStorage.setItem('aa_hearted', JSON.stringify(hearted));
         await heartItem(id);
         loadFeed();
+      });
+    });
+
+    // Reply button clicks — open inline reply form
+    feed.querySelectorAll('[data-reply]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        replyingTo = btn.dataset.reply;
+        renderFeed();
+        // Focus the reply textarea
+        const replyInput = document.getElementById(`aafw-reply-input-${replyingTo.slice(0,8)}`);
+        if (replyInput) {
+          setTimeout(() => replyInput.focus(), 50);
+        }
+      });
+    });
+
+    // Reply cancel clicks
+    feed.querySelectorAll('[data-reply-cancel]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        replyingTo = null;
+        renderFeed();
+      });
+    });
+
+    // Reply send clicks
+    feed.querySelectorAll('[data-reply-send]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const parentId = btn.dataset.replySend;
+        const replyInput = document.getElementById(`aafw-reply-input-${parentId.slice(0,8)}`);
+        const content = replyInput?.value.trim();
+        if (!content) return;
+
+        btn.disabled = true;
+        btn.textContent = '...';
+        try {
+          const result = await submitFeedback('comment', content, null, parentId);
+          replyingTo = null;
+          const newItem = Array.isArray(result) ? result[0] : result;
+          if (newItem?.id) {
+            pendingAiReplyId = newItem.id;
+            startAiReplyPoll(newItem.id);
+          }
+          renderFeed();
+          loadFeed();
+        } catch(e) {
+          btn.disabled = false;
+          btn.textContent = 'Send';
+        }
       });
     });
   }

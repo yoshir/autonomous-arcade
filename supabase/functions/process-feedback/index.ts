@@ -91,28 +91,43 @@ async function askGemma(prompt) {
   return (data.response || '(no response)').trim();
 }
 
-function buildPrompt(item: {
-  type: string;
-  content: string | null;
-  rating: number | null;
-  page_url: string | null;
-  game?: { title?: string; slug?: string } | null;
-}): string {
+function buildPrompt(
+  item: {
+    type: string;
+    content: string | null;
+    rating: number | null;
+    page_url: string | null;
+    game?: { title?: string; slug?: string } | null;
+  },
+  conversationHistory?: Array<{ role: 'player' | 'ai'; content: string }>
+): string {
   const gameTitle = item.game?.title || item.game?.slug || 'a game';
   const typeLabel = { comment: 'comment', bug: 'bug report', suggestion: 'suggestion', rating: 'rating' }[item.type] || 'feedback';
 
   const rules = OWNER_RULES.trim() ? `\n\n${OWNER_RULES.trim()}` : '';
 
-  return `You are the AI curator for Autonomous Arcade — a site that publishes AI-built browser games every 2 hours.
+  let prompt = `You are the AI curator for Autonomous Arcade — a site that publishes AI-built browser games every 2 hours.`;
 
-A player left feedback on "${gameTitle}":
-- Type: ${typeLabel}
-- Content: ${item.content || '(no text, rating only)'}
-- Rating: ${item.rating ? `${item.rating}/5` : 'none'}${rules}
+  // Add conversation history for threaded replies
+  if (conversationHistory && conversationHistory.length > 0) {
+    prompt += `\n\nThis is a reply in an ongoing conversation. Previous messages:\n`;
+    for (const msg of conversationHistory) {
+      const label = msg.role === 'player' ? 'Player' : 'Gemma (AI)';
+      prompt += `${label}: ${msg.content}\n`;
+    }
+    prompt += `\nThe player is continuing the conversation with a new ${typeLabel}.\n`;
+  } else {
+    prompt += `\n\nA player left feedback on "${gameTitle}":\n- Type: ${typeLabel}\n`;
+  }
+
+  prompt += `- Content: ${item.content || '(no text, rating only)'}\n- Rating: ${item.rating ? `${item.rating}/5` : 'none'}${rules}
 
 Write a short, friendly reply (1-2 sentences max) as if you're a game developer responding to a player. Be warm, human, and empathetic — this is a real person who took time to give feedback. No markdown, no emoji.
 
 Reply:`;
+
+  return prompt;
+}
 }
 
 // ─── Mark processed ────────────────────────────────────────────────────────────
@@ -173,7 +188,31 @@ Deno.serve(async (req) => {
       });
     }
 
-    const prompt = buildPrompt(item);
+    // Build conversation history for threaded replies
+    let conversationHistory: Array<{ role: 'player' | 'ai'; content: string }> = [];
+    if (item.parent_id) {
+      // Fetch up to 6 prior messages in the thread (parent + 2 generations)
+      const { data: thread } = await supabase
+        .from('autonomous_arcade_feedback')
+        .select('id, content, ai_reply, parent_id, created_at')
+        .or(`id.eq.${item.parent_id},parent_id.eq.${item.parent_id}`)
+        .order('created_at', { ascending: true })
+        .limit(6);
+
+      if (thread) {
+        for (const msg of thread) {
+          if (msg.content && msg.id !== item.id) {
+            conversationHistory.push({ role: 'player', content: msg.content });
+          }
+          if (msg.ai_reply) {
+            conversationHistory.push({ role: 'ai', content: msg.ai_reply });
+          }
+        }
+      }
+      console.log(`Thread context: ${conversationHistory.length} prior messages for ${item.id}`);
+    }
+
+    const prompt = buildPrompt(item, conversationHistory);
     let reply: string;
     let ollamaFailed = false;
 
