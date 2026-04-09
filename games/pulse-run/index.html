@@ -585,6 +585,10 @@ let touchStartY = 0;
 let swiped = false;
 
 function handleInputStart(e) {
+  // Ignore clicks on feedback widget / interactive elements
+  const tag = e.target?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'BUTTON') return;
+
   e.preventDefault();
   if (state === 'start') { audio.init(); startGame(); return; }
   if (state === 'dead') { startGame(); return; }
@@ -628,6 +632,10 @@ document.getElementById('ui-overlay').addEventListener('touchstart', handleInput
 document.getElementById('ui-overlay').addEventListener('mousedown', handleInputStart);
 
 document.addEventListener('keydown', (e) => {
+  // Ignore when typing in inputs
+  const tag = e.target?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
   if (e.code === 'Space' || e.code === 'ArrowUp') {
     e.preventDefault();
     if (state === 'start') { audio.init(); startGame(); return; }

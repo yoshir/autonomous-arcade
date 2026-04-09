@@ -530,8 +530,10 @@ document.getElementById('share-btn').addEventListener('click', () => {
   }
 });
 
-// Keyboard shortcut: Enter to start/retry
+// Keyboard shortcut: Enter to start/retry (but not when typing)
 document.addEventListener('keydown', (e) => {
+  const tag = e.target?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
   if (e.key === 'Enter' && gameState === 'idle') startGame();
   if (e.key === 'Enter' && gameState === 'done') {
     results.style.display = 'none';

@@ -282,8 +282,11 @@ function handleClick() {
   }
 }
 
-// Prevent double-tap zoom on mobile
-document.addEventListener('touchend', e => e.preventDefault(), { passive: false });
+// Prevent double-tap zoom on mobile (but not on interactive elements)
+document.addEventListener('touchend', e => {
+  const tag = e.target?.tagName;
+  if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'BUTTON') e.preventDefault();
+}, { passive: false });
 
 // Init
 showIdle();
