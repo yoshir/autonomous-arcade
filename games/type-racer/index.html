@@ -564,11 +564,15 @@ document.getElementById('aa-changelog-toggle').addEventListener('click',function
 });
 </script>
 
+<!-- Chat Widget -->
+<div id="aa-chat"></div>
+<script src="/chat-widget.js" data-game-slug="type-racer"></script>
+
 <!-- Feedback Widget -->
-<div id="aa-feedback" style="position:fixed;bottom:16px;right:16px;z-index:9999;width:360px;max-height:500px;overflow-y:auto;background:rgba(10,10,31,0.95);border:1px solid rgba(0,240,255,0.15);border-radius:16px;padding:16px;backdrop-filter:blur(12px);display:none;">
+<div id="aa-feedback" style="position:fixed;bottom:80px;right:16px;z-index:9999;width:360px;max-height:500px;overflow-y:auto;background:rgba(10,10,31,0.95);border:1px solid rgba(0,240,255,0.15);border-radius:16px;padding:16px;backdrop-filter:blur(12px);display:none;">
   <button id="aa-feedback-close" style="position:absolute;top:8px;right:12px;background:none;border:none;color:#556;font-size:18px;cursor:pointer;">✕</button>
 </div>
-<button id="aa-feedback-toggle" style="position:fixed;bottom:16px;right:16px;z-index:9998;background:linear-gradient(135deg,#ff00aa,#cc0088);color:#fff;border:none;border-radius:50%;width:52px;height:52px;font-size:24px;cursor:pointer;box-shadow:0 4px 20px rgba(255,0,170,0.4);transition:transform 0.2s;" title="Send Feedback">💬</button>
+<button id="aa-feedback-toggle" style="position:fixed;bottom:80px;right:16px;z-index:9998;background:linear-gradient(135deg,#ff00aa,#cc0088);color:#fff;border:none;border-radius:50%;width:52px;height:52px;font-size:24px;cursor:pointer;box-shadow:0 4px 20px rgba(255,0,170,0.4);transition:transform 0.2s;" title="Send Feedback">📝</button>
 <script src="/feedback-widget.js" data-project="type-racer" data-api="/api/feedback" data-container="aa-feedback"></script>
 <script>
 (function(){
